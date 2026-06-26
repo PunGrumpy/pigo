@@ -22,6 +22,9 @@
     "fix": {
       "cache": false,
       "outputs": []
+    },
+    "test": {
+      "outputs": []
     }
   }
 }
