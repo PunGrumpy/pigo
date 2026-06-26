@@ -23,7 +23,7 @@ const readApiError = async (response: Response) => {
   }
 };
 
-export const resultFromBlob = (
+const resultFromBlob = (
   blob: Blob,
   headers: CompressionHeaders
 ): ImageResult => {

@@ -47,10 +47,10 @@ export const mimeFromFormat = (format: ImageFormat) => {
   return "image/webp";
 };
 
-export const extensionForFormat = (format: ImageFormat) =>
+const extensionForFormat = (format: ImageFormat) =>
   format === "jpeg" ? "jpg" : format;
 
-export const resolveOutputFormat = (
+const resolveOutputFormat = (
   inputFormat: ImageFormat,
   outputChoice: OutputChoice
 ): ImageFormat => (outputChoice === "same" ? inputFormat : outputChoice);

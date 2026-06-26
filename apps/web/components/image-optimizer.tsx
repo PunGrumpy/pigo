@@ -104,6 +104,7 @@ export const ImageOptimizer = () => {
       <input
         ref={inputRef}
         accept={ACCEPTED_MIME_TYPES.join(",")}
+        aria-label="Select images to optimize"
         className="sr-only"
         multiple
         type="file"

@@ -2,7 +2,7 @@
 
 import { Button } from "@vercel/geistdocs/components/button";
 import { ChevronsLeftRight, Download, Loader2, X } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef } from "react";
 
 import { OptimizerMetadataGrid } from "@/components/optimizer-metadata-grid";
 import { isJobPending } from "@/lib/image/job";
@@ -23,7 +23,7 @@ export const OptimizerPreview = ({
   onSliderChange,
 }: OptimizerPreviewProps) => {
   const compareRef = useRef<HTMLDivElement>(null);
-  const [isDragging, setIsDragging] = useState(false);
+  const isDraggingRef = useRef(false);
 
   const updateFromPointer = useCallback(
     (clientX: number) => {
@@ -46,25 +46,25 @@ export const OptimizerPreview = ({
     }
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
-    setIsDragging(true);
+    isDraggingRef.current = true;
     updateFromPointer(event.clientX);
   };
 
   const onComparePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDragging) {
+    if (!isDraggingRef.current) {
       return;
     }
     updateFromPointer(event.clientX);
   };
 
   const endCompareDrag = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDragging) {
+    if (!isDraggingRef.current) {
       return;
     }
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
-    setIsDragging(false);
+    isDraggingRef.current = false;
   };
 
   return (

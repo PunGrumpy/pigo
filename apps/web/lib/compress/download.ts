@@ -1,7 +1,7 @@
 import { buildDownloadName } from "@/lib/image/format";
 import type { ImageJob } from "@/lib/image/types";
 
-export const downloadBlob = (blob: Blob, filename: string) => {
+const downloadBlob = (blob: Blob, filename: string) => {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
