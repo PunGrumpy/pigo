@@ -5,6 +5,7 @@
       "@/*": ["./*"],
       "@pigo/*": ["../../packages/*"]
     },
+    "types": ["bun"],
     "strictNullChecks": true
   },
   "include": [
