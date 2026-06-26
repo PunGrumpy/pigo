@@ -53,7 +53,11 @@
   "[yaml]": {
     "editor.defaultFormatter": "oxc.oxc-vscode"
   },
+  "[go]": {
+    "editor.defaultFormatter": "golang.go"
+  },
   "editor.codeActionsOnSave": {
-    "source.fixAll.oxc": "explicit"
+    "source.fixAll.oxc": "explicit",
+    "source.organizeImports.go": "explicit"
   }
 }
