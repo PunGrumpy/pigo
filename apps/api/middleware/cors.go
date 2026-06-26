@@ -1,4 +1,4 @@
-package main
+package middleware
 
 import (
 	"net/http"
@@ -8,7 +8,7 @@ import (
 
 const compressionExposeHeaders = "X-Original-Size, X-Compressed-Size, X-Elapsed-Ms, X-Output-Format, X-Width, X-Height"
 
-func corsMiddleware(next http.Handler) http.Handler {
+func CORS(next http.Handler) http.Handler {
 	allowedOrigins := parseAllowedOrigins()
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
