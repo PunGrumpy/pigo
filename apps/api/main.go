@@ -22,6 +22,7 @@ func main() {
 
 func newRouter() http.Handler {
 	r := chi.NewRouter()
+	r.Use(corsMiddleware)
 	r.Use(middleware.Logger)
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Recoverer)
