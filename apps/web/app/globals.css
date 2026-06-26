@@ -1,10 +1,15 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+@source "../node_modules/@vercel/geistdocs/dist/**/*.js";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
   /* geist theme tokens */
+
+  --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono), ui-monospace, monospace;
 
   --radius-xs: 0.125rem; /* 2px */
   --radius-sm: 0.25rem; /* 4px */
@@ -435,7 +440,7 @@
     @apply border-gray-alpha-400;
   }
   ::selection {
-    @apply bg-gray-1000 text-background-200;
+    @apply bg-gray-1000 text-background-100;
   }
   * {
     @apply border-gray-alpha-400 outline-gray-600/50;
@@ -446,7 +451,7 @@
     scroll-behavior: smooth;
   }
   body {
-    @apply min-h-dvh;
+    @apply min-h-dvh text-copy-14;
     @apply bg-background-200 text-gray-1000;
   }
   input::placeholder,
@@ -593,10 +598,6 @@
   @apply font-sans font-normal [&>strong]:font-medium [&>strong]:text-gray-1000 text-[16px] leading-[20px];
 }
 
-@utility text-label-16-mono {
-  @apply font-mono font-normal text-[16px] leading-[20px];
-}
-
 @utility text-label-14 {
   @apply font-sans font-normal [&>strong]:font-medium [&>strong]:text-gray-1000 text-[14px] leading-[20px];
 }
@@ -652,24 +653,5 @@
 }
 
 @utility text-copy-13-mono {
-  @apply font-mono font-normal text-[13px] leading-[18px];
-}
-
-/* Geist text utilities */
-
-@utility material-small {
-  box-shadow: var(--ds-shadow-border-small);
-  @apply bg-background-100 rounded-md;
-}
-
-@utility text-label-13 {
-  @apply font-sans font-normal text-[13px] leading-[16px];
-}
-
-@utility text-label-14-mono {
-  @apply font-mono font-normal text-[14px] leading-[20px];
-}
-
-@utility text-label-16-mono {
-  @apply font-mono font-normal text-[16px] leading-[20px];
+  @apply font-mono font-normal [&>strong]:font-medium [&>strong]:text-gray-1000 text-[13px] leading-[18px];
 }
