@@ -2,7 +2,7 @@
   "name": "@pigo/api",
   "private": true,
   "scripts": {
-    "build": "mkdir -p dist && go build -o dist/pigo-api .",
+    "build": "OUTPUT=\"${VERCEL_OUTPUT_FILE:-dist/pigo-api}\"; mkdir -p \"$(dirname \"$OUTPUT\")\" && go build -o \"$OUTPUT\" .",
     "dev": "air .",
     "test": "go test ./...",
     "check": "go vet ./...",
