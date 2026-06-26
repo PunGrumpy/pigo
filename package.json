@@ -10,8 +10,8 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "typecheck": "turbo run typecheck",
-    "check": "ultracite check",
-    "fix": "ultracite fix",
+    "check": "turbo run check && ultracite check",
+    "fix": "turbo run fix && ultracite fix",
     "doctor": "react-doctor",
     "prepare": "husky"
   },
