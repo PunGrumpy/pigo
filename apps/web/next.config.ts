@@ -24,6 +24,8 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+
+  transpilePackages: ["@vercel/geistdocs"],
 };
 
 export default nextConfig;
