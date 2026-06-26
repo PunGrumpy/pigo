@@ -1,0 +1,11 @@
+{
+  "name": "@pigo/api",
+  "private": true,
+  "scripts": {
+    "build": "mkdir -p dist && go build -o dist/pigo-api .",
+    "dev": "air .",
+    "test": "go test ./...",
+    "check": "go vet ./...",
+    "fix": "go fmt ./..."
+  }
+}
