@@ -5,9 +5,11 @@ import type { ReactNode } from "react";
 import { DesignSystemProvider } from "@/components/providers/client";
 import { fonts } from "@/lib/fonts";
 
-const title = "pigo";
+const title = "Pigo";
+const description =
+  "A minimal-dependency, minimal-configuration image optimizer written in Go.";
 
-export const metadata: Metadata = { description: "Next.js app", title };
+export const metadata: Metadata = { description, title };
 
 interface RootLayoutProps {
   readonly children: ReactNode;
