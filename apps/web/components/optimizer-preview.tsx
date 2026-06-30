@@ -1,11 +1,11 @@
 "use client";
 
 import { Button } from "@vercel/geistdocs/components/button";
-import { ChevronsLeftRight, Download, Loader2, X } from "lucide-react";
+import { Spinner } from "@vercel/geistdocs/components/spinner";
+import { ChevronsLeftRight, Download, X } from "lucide-react";
 import Image from "next/image";
 import { useCallback, useRef } from "react";
 
-import { OptimizerMetadataGrid } from "@/components/optimizer-metadata-grid";
 import { isJobPending } from "@/lib/image/job";
 import type { ImageJob } from "@/lib/image/types";
 import { cn } from "@/lib/utils";
@@ -166,10 +166,10 @@ export const OptimizerPreview = ({
         ) : null}
 
         {isJobPending(job) ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gray-alpha-100">
-            <Loader2
-              aria-hidden="true"
-              className="size-[22px] animate-spin text-gray-900"
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gray-alpha-100 z-20">
+            <Spinner
+              aria-label="Processing"
+              className="size-[22px] text-gray-900"
             />
             <span className="text-label-14 text-gray-900">Processing…</span>
           </div>
@@ -207,8 +207,6 @@ export const OptimizerPreview = ({
           />
         </div>
       ) : null}
-
-      <OptimizerMetadataGrid job={job} />
     </div>
   );
 };
