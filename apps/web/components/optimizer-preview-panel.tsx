@@ -15,7 +15,7 @@ export const OptimizerPreviewPanel = () => {
   return (
     <section
       aria-label="Image preview"
-      className="order-1 flex flex-col gap-4 rounded-[12px] border border-gray-alpha-400 bg-background-100 p-4 shadow-sm md:p-6 lg:order-0 lg:h-full lg:min-h-0 lg:flex-1"
+      className="flex flex-col gap-4 lg:h-full lg:min-h-0 lg:flex-1"
     >
       {selectedJob ? (
         <OptimizerPreview
@@ -29,8 +29,8 @@ export const OptimizerPreviewPanel = () => {
       ) : (
         <div
           className={cn(
-            "flex flex-1 flex-col items-center justify-center gap-3 rounded-[6px] border border-dashed border-gray-alpha-400 text-center",
-            dropActive && "border-blue-700 bg-blue-100"
+            "flex flex-1 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-gray-alpha-400 bg-background-100 px-4 py-12 text-center shadow-2xs transition-colors",
+            dropActive && "border-blue-700 bg-blue-100/50"
           )}
         >
           <ImageIcon
@@ -39,8 +39,11 @@ export const OptimizerPreviewPanel = () => {
             size={48}
             strokeWidth={1.5}
           />
-          <p className="text-copy-14 text-gray-900">
-            Drop or select images to start compressing.
+          <p className="text-copy-14 text-gray-900 font-medium">
+            Drop or select images to start compressing
+          </p>
+          <p className="text-[12px] text-gray-800">
+            JPEG, PNG, or WebP up to 10MB
           </p>
         </div>
       )}
