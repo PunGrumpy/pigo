@@ -32,6 +32,25 @@ export const useOptimizer = () => {
   });
   const [optionsDirty, setOptionsDirty] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterTab, setFilterTab] = useState<"all" | "optimized" | "errors">(
+    "all"
+  );
+
+  const filteredJobs = useMemo(
+    () =>
+      jobs.filter((job) => {
+        const matchesSearch = job.name
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase());
+        const matchesTab =
+          filterTab === "all" ||
+          (filterTab === "optimized" && job.status === "done") ||
+          (filterTab === "errors" && job.status === "error");
+        return matchesSearch && matchesTab;
+      }),
+    [jobs, searchQuery, filterTab]
+  );
 
   useEffect(() => {
     jobsRef.current = jobs;
@@ -273,6 +292,8 @@ export const useOptimizer = () => {
     completedJobs,
     downloadAll: () => void downloadAll(jobsRef.current),
     downloadJob,
+    filterTab,
+    filteredJobs,
     isProcessing,
     jobs,
     notice,
@@ -280,8 +301,11 @@ export const useOptimizer = () => {
     optionsDirty,
     patchOptions,
     removeJob,
+    searchQuery,
     selectedId,
     selectedJob,
+    setFilterTab,
+    setSearchQuery,
     setSelectedId,
     totalCompressed,
     totalOriginal,
