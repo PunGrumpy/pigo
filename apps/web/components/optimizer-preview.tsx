@@ -2,6 +2,7 @@
 
 import { Button } from "@vercel/geistdocs/components/button";
 import { ChevronsLeftRight, Download, Loader2, X } from "lucide-react";
+import Image from "next/image";
 import { useCallback, useRef } from "react";
 
 import { OptimizerMetadataGrid } from "@/components/optimizer-metadata-grid";
@@ -112,11 +113,14 @@ export const OptimizerPreview = ({
         onPointerMove={onComparePointerMove}
         onPointerUp={endCompareDrag}
       >
-        <img
+        <Image
           alt={`Original ${job.name}`}
           className="max-h-full max-w-full object-contain"
           draggable={false}
+          height={job.height}
           src={job.originalUrl}
+          unoptimized
+          width={job.width}
         />
         {job.result ? (
           <>
@@ -124,11 +128,14 @@ export const OptimizerPreview = ({
               className="pointer-events-none absolute inset-0 flex items-center justify-center"
               style={{ clipPath: `inset(0 ${100 - job.slider}% 0 0)` }}
             >
-              <img
+              <Image
                 alt={`Optimized ${job.name}`}
                 className="max-h-full max-w-full object-contain"
                 draggable={false}
+                height={job.result.height}
                 src={job.result.url}
+                unoptimized
+                width={job.result.width}
               />
             </div>
 

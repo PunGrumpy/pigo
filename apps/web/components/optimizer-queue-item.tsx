@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 import { OptimizerStatusBadge } from "@/components/optimizer-status-badge";
 import { formatBytes } from "@/lib/image/format";
 import type { ImageJob } from "@/lib/image/types";
@@ -24,11 +26,13 @@ export const OptimizerQueueItem = ({
     type="button"
     onClick={onSelect}
   >
-    {/* oxlint-disable-next-line next/no-img-element */}
-    <img
+    <Image
       alt=""
       className="size-10 shrink-0 rounded-md object-cover"
+      height={40}
       src={job.originalUrl}
+      unoptimized
+      width={40}
     />
     <span className="min-w-0 flex-1">
       <strong className="block truncate text-label-14 text-gray-1000">
