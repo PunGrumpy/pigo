@@ -5,15 +5,15 @@ import { Trash2, Upload } from "lucide-react";
 
 import { useOptimizerContext } from "@/components/providers/optimizer-provider";
 
+import { Logo } from "./logo";
+
 export const OptimizerHeader = () => {
   const { jobs, clearAll, openFilePicker } = useOptimizerContext();
 
   return (
     <header className="flex shrink-0 flex-col gap-3 py-1 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-center gap-3">
-        <span className="flex size-10 items-center justify-center rounded-[6px] bg-gray-1000 text-background-100 text-heading-16">
-          P
-        </span>
+        <Logo className="size-8" />
         <div>
           <h1 className="text-heading-20 text-gray-1000">Pigo</h1>
           <p className="text-label-13 text-gray-900">
