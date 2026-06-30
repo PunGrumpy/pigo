@@ -1,43 +1,35 @@
+"use client";
+
 import { Button } from "@vercel/geistdocs/components/button";
 import { Input } from "@vercel/geistdocs/components/input";
 import { Download, ChevronDown, FileArchive, RefreshCw } from "lucide-react";
 
+import { useOptimizerContext } from "@/components/providers/optimizer-provider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatBytes, formatSavings } from "@/lib/image/format";
-import type {
-  CompressionOptions,
-  ImageJob,
-  OutputChoice,
-} from "@/lib/image/types";
+import type { CompressionOptions, OutputChoice } from "@/lib/image/types";
 import { cn } from "@/lib/utils";
 
-interface OptimizerControlsPanelProps {
-  completedCount: number;
-  isProcessing: boolean;
-  jobCount: number;
-  options: CompressionOptions;
-  optionsDirty: boolean;
-  selectedJob: ImageJob | null;
-  totalCompressed: number;
-  totalOriginal: number;
-  onApply: () => void;
-  onDownloadAll: () => void;
-  onPatchOptions: (patch: Partial<CompressionOptions>) => void;
-}
+export const OptimizerControlsPanel = () => {
+  const {
+    completedJobs,
+    isProcessing,
+    jobs,
+    options,
+    optionsDirty,
+    selectedJob,
+    totalCompressed,
+    totalOriginal,
+    applyOptions,
+    downloadAll,
+    patchOptions,
+  } = useOptimizerContext();
 
-export const OptimizerControlsPanel = ({
-  completedCount,
-  isProcessing,
-  jobCount,
-  options,
-  optionsDirty,
-  selectedJob,
-  totalCompressed,
-  totalOriginal,
-  onApply,
-  onDownloadAll,
-  onPatchOptions,
-}: OptimizerControlsPanelProps) => {
+  const completedCount = completedJobs.length;
+  const jobCount = jobs.length;
+  const onApply = applyOptions;
+  const onDownloadAll = downloadAll;
+  const onPatchOptions = patchOptions;
   let applyLabel = "Recompress";
   if (isProcessing) {
     applyLabel = "Compressing…";
