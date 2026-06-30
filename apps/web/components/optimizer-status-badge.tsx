@@ -1,3 +1,5 @@
+"use client";
+
 import { Spinner } from "@vercel/geistdocs/components/spinner";
 
 import { formatSavings } from "@/lib/image/format";
@@ -12,11 +14,16 @@ export const OptimizerStatusBadge = ({ job }: OptimizerStatusBadgeProps) => {
   switch (job.status) {
     case "queued":
     case "processing": {
-      return <Spinner aria-label="Processing" className="size-4 shrink-0" />;
+      return (
+        <span className="flex items-center gap-1.5">
+          <Spinner aria-label="Processing" className="size-3 shrink-0" />
+        </span>
+      );
     }
     case "error": {
       return (
-        <span className="shrink-0 whitespace-nowrap rounded-md bg-red-100 px-2 py-0.5 text-label-12 text-red-800">
+        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-[4px] bg-red-100 border border-red-400 px-1.5 py-0.5 text-[11px] font-semibold text-red-900">
+          <span className="size-1 rounded-full bg-red-700" />
           Error
         </span>
       );
@@ -24,7 +31,7 @@ export const OptimizerStatusBadge = ({ job }: OptimizerStatusBadgeProps) => {
     case "done": {
       if (!job.result) {
         return (
-          <span className="shrink-0 whitespace-nowrap rounded-md bg-gray-100 px-2 py-0.5 text-label-12 text-gray-900">
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-[4px] bg-gray-100 border border-gray-400 px-1.5 py-0.5 text-[11px] font-semibold text-gray-900">
             Ready
           </span>
         );
@@ -34,12 +41,18 @@ export const OptimizerStatusBadge = ({ job }: OptimizerStatusBadgeProps) => {
       return (
         <span
           className={cn(
-            "shrink-0 whitespace-nowrap rounded-md px-2 py-0.5 text-label-12-mono",
+            "inline-flex shrink-0 items-center gap-1.5 rounded-[4px] border px-1.5 py-0.5 text-[11px] font-mono font-semibold",
             saved
-              ? "bg-green-100 text-green-800"
-              : "bg-amber-100 text-amber-900"
+              ? "bg-green-100 border-green-400 text-green-900"
+              : "bg-amber-100 border-amber-400 text-amber-900"
           )}
         >
+          <span
+            className={cn(
+              "size-1.5 rounded-full",
+              saved ? "bg-green-700" : "bg-amber-700"
+            )}
+          />
           {formatSavings(job.originalSize, job.result.size)}
         </span>
       );

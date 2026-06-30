@@ -452,7 +452,7 @@
   }
   body {
     @apply min-h-dvh text-copy-14;
-    @apply bg-background-200 text-gray-1000;
+    @apply bg-background-100 text-gray-1000;
   }
   input::placeholder,
   textarea::placeholder {
