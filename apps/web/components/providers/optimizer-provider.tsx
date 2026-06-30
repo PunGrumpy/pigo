@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useMemo, useRef } from "react";
+import { createContext, useMemo, useRef, use } from "react";
 import type { PropsWithChildren } from "react";
 
 import { useOptimizer } from "@/hooks/use-optimizer";
@@ -50,7 +50,7 @@ export const OptimizerProvider = ({ children }: PropsWithChildren) => {
 };
 
 export const useOptimizerContext = (): OptimizerContextType => {
-  const context = useContext(OptimizerContext);
+  const context = use(OptimizerContext);
   if (!context) {
     throw new Error(
       "useOptimizerContext must be used within an OptimizerProvider"

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useEffect, useRef, useState, use } from "react";
 import type { PropsWithChildren } from "react";
 
 import { useOptimizerContext } from "./optimizer-provider";
@@ -68,7 +68,7 @@ export const DragDropProvider = ({ children }: PropsWithChildren) => {
 };
 
 export const useDragDrop = (): DragDropContextType => {
-  const context = useContext(DragDropContext);
+  const context = use(DragDropContext);
   if (!context) {
     throw new Error("useDragDrop must be used within a DragDropProvider");
   }
