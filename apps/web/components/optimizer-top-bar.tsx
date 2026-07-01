@@ -14,7 +14,7 @@ export const OptimizerTopBar = () => {
   const countErrors = jobs.filter((job) => job.status === "error").length;
 
   return (
-    <div className="flex h-14 shrink-0 items-center justify-between border-b border-gray-alpha-400 bg-background-100 px-6">
+    <div className="flex h-14 shrink-0 items-center justify-between border-b border-gray-alpha-400 bg-background-100 px-4 md:px-6">
       <nav
         aria-label="Filter image queue"
         className="flex h-full items-center gap-1 -ml-4"
@@ -100,7 +100,7 @@ export const OptimizerTopBar = () => {
         </button>
       </nav>
 
-      <div className="relative w-64">
+      <div className="relative w-40 sm:w-64">
         <span className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-gray-700">
           <Search className="size-4" />
         </span>
