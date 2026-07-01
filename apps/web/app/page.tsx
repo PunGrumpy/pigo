@@ -8,13 +8,13 @@ import { OptimizerProvider } from "@/components/providers/optimizer-provider";
 const Home = () => (
   <OptimizerProvider>
     <DragDropProvider>
-      <div className="flex h-dvh w-screen overflow-hidden bg-background-100 text-gray-1000">
+      <div className="flex min-h-dvh w-screen flex-col bg-background-100 text-gray-1000 lg:h-dvh lg:flex-row lg:overflow-hidden">
         <OptimizerQueuePanel />
 
-        <div className="flex flex-1 flex-col overflow-hidden bg-background-100">
+        <div className="flex flex-1 flex-col bg-background-100 lg:overflow-hidden">
           <OptimizerTopBar />
-          <main className="flex flex-1 overflow-hidden">
-            <div className="flex flex-1 flex-col overflow-hidden p-6">
+          <main className="flex flex-1 flex-col lg:flex-row lg:overflow-hidden">
+            <div className="flex flex-1 flex-col p-4 md:p-6 lg:overflow-hidden">
               <OptimizerPreviewPanel />
             </div>
 
