@@ -47,7 +47,7 @@ export const OptimizerControlsPanel = () => {
   return (
     <aside
       aria-label="Settings and Information"
-      className="flex h-full w-80 shrink-0 flex-col border-l border-gray-alpha-400 bg-background-200"
+      className="flex w-full flex-col border-t border-gray-alpha-400 bg-background-200 lg:h-full lg:w-80 lg:shrink-0 lg:border-t-0 lg:border-l"
     >
       <div className="flex h-14 shrink-0 items-center justify-between border-b border-gray-alpha-400 px-4">
         <span className="text-label-13 font-semibold text-gray-1000">
@@ -55,7 +55,7 @@ export const OptimizerControlsPanel = () => {
         </span>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-6">
+      <div className="p-4 flex flex-col gap-6 lg:flex-1 lg:overflow-y-auto">
         <div className="flex flex-col gap-2">
           <h3 className="text-label-13 font-medium text-gray-900">
             Total Savings

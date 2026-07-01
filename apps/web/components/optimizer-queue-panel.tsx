@@ -73,7 +73,7 @@ export const OptimizerQueuePanel = () => {
     <aside
       aria-label="Image optimizer sidebar"
       className={cn(
-        "flex h-full w-72 shrink-0 flex-col border-r border-gray-alpha-400 bg-background-200 transition-colors",
+        "flex w-full flex-col border-b border-gray-alpha-400 bg-background-200 transition-colors lg:h-full lg:w-72 lg:shrink-0 lg:border-b-0 lg:border-r",
         dropActive && "bg-blue-100/30"
       )}
     >
@@ -89,7 +89,7 @@ export const OptimizerQueuePanel = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3">
+      <div className="max-h-64 overflow-y-auto p-3 lg:max-h-none lg:flex-1">
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between px-2 py-1">
             <span className="text-label-13 font-medium text-gray-900">
