@@ -1,0 +1,7 @@
+{
+  "name": "@pigo/core",
+  "version": "0.1.0",
+  "private": false,
+  "description": "Core image processing library for Pigo",
+  "type": "module"
+}
