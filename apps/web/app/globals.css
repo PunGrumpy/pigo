@@ -128,6 +128,10 @@
   --color-pink-800: var(--ds-pink-800);
   --color-pink-900: var(--ds-pink-900);
   --color-pink-1000: var(--ds-pink-1000);
+
+  --color-geist-success: var(--geist-success);
+  --color-geist-error: var(--geist-error);
+  --color-geist-warning: var(--geist-warning);
 }
 
 :root {
@@ -226,6 +230,9 @@
   --ds-pink-800: oklch(59.51% 0.2339 4.21);
   --ds-pink-900: oklch(53.5% 0.2058 2.84);
   --ds-pink-1000: oklch(26% 0.0977 359);
+
+  --ds-focus-color: var(--ds-blue-700);
+
   --ds-shadow-background-border: 0 0 0 1px var(--ds-background-200);
 
   --ds-shadow-border-base: 0 0 0 1px rgba(0, 0, 0, 0.08);
@@ -279,7 +286,13 @@
     0px 8px 16px -4px rgba(0, 0, 0, 0.04),
     0px 24px 32px -8px rgba(0, 0, 0, 0.06), var(--ds-shadow-background-border);
 
-  --radius: 0.625rem;
+  --ds-focus-ring:
+    0 0 0 2px var(--ds-background-100), 0 0 0 4px var(--ds-focus-color);
+  --ds-focus-ring-outline: 2px solid var(--ds-focus-color);
+
+  --geist-success: #0070f3;
+  --geist-error: #e00000;
+  --geist-warning: #f5a623;
 }
 
 .dark {
@@ -377,6 +390,8 @@
   --ds-pink-900: oklch(69.36% 0.2223 3.91);
   --ds-pink-1000: oklch(95.74% 0.0326 350.08);
 
+  --ds-focus-color: var(--ds-blue-900);
+
   --ds-shadow-background-border: 0 0 0 1px var(--ds-background-200);
 
   --ds-shadow-border-base: 0 0 0 1px rgba(255, 255, 255, 0.145);
@@ -446,8 +461,15 @@
     @apply border-gray-alpha-400 outline-gray-600/50;
   }
   html {
-    font-feature-settings: "ss01";
+    touch-action: manipulation;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 0,
+      "ss11" 1;
     text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-synthesis: none;
     scroll-behavior: smooth;
   }
   body {
@@ -654,4 +676,10 @@
 
 @utility text-copy-13-mono {
   @apply font-mono font-normal [&>strong]:font-medium [&>strong]:text-gray-1000 text-[13px] leading-[18px];
+}
+
+/* Status */
+
+@utility geist-ellipsis {
+  @apply text-ellipsis overflow-hidden whitespace-nowrap wrap-normal max-w-full inline-block;
 }
