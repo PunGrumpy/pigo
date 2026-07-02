@@ -33,12 +33,6 @@ export const OptimizerTopBar = () => {
           <span className="ml-1.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-gray-200 px-1.5 text-[11px] font-semibold text-gray-900">
             {countAll}
           </span>
-          {filterTab === "all" && (
-            <span
-              aria-hidden="true"
-              className="absolute bottom-0 left-0 h-0.5 w-full bg-gray-1000"
-            />
-          )}
         </button>
 
         <button
@@ -62,12 +56,6 @@ export const OptimizerTopBar = () => {
           >
             {countOptimized}
           </span>
-          {filterTab === "optimized" && (
-            <span
-              aria-hidden="true"
-              className="absolute bottom-0 left-0 h-0.5 w-full bg-gray-1000"
-            />
-          )}
         </button>
 
         <button
@@ -91,12 +79,6 @@ export const OptimizerTopBar = () => {
           >
             {countErrors}
           </span>
-          {filterTab === "errors" && (
-            <span
-              aria-hidden="true"
-              className="absolute bottom-0 left-0 h-0.5 w-full bg-gray-1000"
-            />
-          )}
         </button>
       </nav>
 
