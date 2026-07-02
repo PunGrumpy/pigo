@@ -49,7 +49,7 @@ export const Status = async () => {
       rel="noopener noreferrer"
       target="_blank"
     >
-      <div className="flex-[0_1_auto] min-w-0 w-auto h-[34px] max-[960px]:h-8 flex items-center border border-gray-alpha-400 bg-background-100 gap-1.5 whitespace-nowrap overflow-hidden text-ellipsis transition-all duration-200 [transition-timing-function:ease] hover:bg-gray-900 [&>*]:leading-[var(--geist-form-line-height)] border-none! rounded-md bg-transparent! hover:bg-gray-100! dark:hover:bg-gray-900/50!">
+      <div className="flex-[0_1_auto] min-w-0 w-auto h-[34px] max-[960px]:h-8 flex items-center px-3 border border-gray-alpha-400 bg-background-100 gap-1.5 whitespace-nowrap overflow-hidden text-ellipsis transition-all duration-200 [transition-timing-function:ease] hover:bg-gray-900 [&>*]:leading-[var(--geist-form-line-height)] border-none! rounded-md bg-transparent! hover:bg-gray-100! dark:hover:bg-gray-900/50!">
         <span
           className={cn(
             "status-dot shrink-0 inline-block size-2.5 rounded-full transition-all duration-300",
