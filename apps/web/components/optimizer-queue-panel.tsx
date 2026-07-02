@@ -114,7 +114,7 @@ export const OptimizerQueuePanel = ({ status }: OptimizerQueuePanelProps) => {
         </div>
       )}
 
-      <div className="flex h-10 shrink-0 items-center px-3 border-t border-gray-alpha-400 bg-background-100">
+      <div className="flex h-10 shrink-0 items-center px-3 border-t border-gray-alpha-400 bg-background-200">
         {status}
       </div>
 
