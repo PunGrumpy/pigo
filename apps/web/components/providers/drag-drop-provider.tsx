@@ -1,6 +1,14 @@
 "use client";
 
-import { createContext, useEffect, useRef, useState, use } from "react";
+import {
+  createContext,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  use,
+} from "react";
 import type { PropsWithChildren } from "react";
 
 import { useOptimizerContext } from "./optimizer-provider";
@@ -16,28 +24,28 @@ export const DragDropProvider = ({ children }: PropsWithChildren) => {
   const { addFiles } = useOptimizerContext();
   const dragCounter = useRef(0);
 
-  useEffect(() => {
-    const handleDragEnter = (event: DragEvent) => {
-      event.preventDefault();
-      dragCounter.current += 1;
-      if (dragCounter.current === 1) {
-        setDropActive(true);
-      }
-    };
+  const handleDragEnter = useCallback((event: DragEvent) => {
+    event.preventDefault();
+    dragCounter.current += 1;
+    if (dragCounter.current === 1) {
+      setDropActive(true);
+    }
+  }, []);
 
-    const handleDragOver = (event: DragEvent) => {
-      event.preventDefault();
-    };
+  const handleDragOver = useCallback((event: DragEvent) => {
+    event.preventDefault();
+  }, []);
 
-    const handleDragLeave = (event: DragEvent) => {
-      event.preventDefault();
-      dragCounter.current -= 1;
-      if (dragCounter.current === 0) {
-        setDropActive(false);
-      }
-    };
+  const handleDragLeave = useCallback((event: DragEvent) => {
+    event.preventDefault();
+    dragCounter.current -= 1;
+    if (dragCounter.current === 0) {
+      setDropActive(false);
+    }
+  }, []);
 
-    const handleDrop = (event: DragEvent) => {
+  const handleDrop = useCallback(
+    (event: DragEvent) => {
       event.preventDefault();
       dragCounter.current = 0;
       setDropActive(false);
@@ -45,8 +53,11 @@ export const DragDropProvider = ({ children }: PropsWithChildren) => {
       if (event.dataTransfer?.files && event.dataTransfer.files.length > 0) {
         void addFiles(event.dataTransfer.files);
       }
-    };
+    },
+    [addFiles]
+  );
 
+  useEffect(() => {
     window.addEventListener("dragenter", handleDragEnter);
     window.addEventListener("dragover", handleDragOver);
     window.addEventListener("dragleave", handleDragLeave);
@@ -58,10 +69,12 @@ export const DragDropProvider = ({ children }: PropsWithChildren) => {
       window.removeEventListener("dragleave", handleDragLeave);
       window.removeEventListener("drop", handleDrop);
     };
-  }, [addFiles]);
+  }, [handleDragEnter, handleDragOver, handleDragLeave, handleDrop]);
+
+  const value = useMemo(() => ({ dropActive }), [dropActive]);
 
   return (
-    <DragDropContext.Provider value={{ dropActive }}>
+    <DragDropContext.Provider value={value}>
       {children}
     </DragDropContext.Provider>
   );
