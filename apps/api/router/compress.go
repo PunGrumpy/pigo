@@ -6,14 +6,14 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/PunGrumpy/pigo/apps/api/image"
+	"github.com/PunGrumpy/pigo/packages/core"
 )
 
 func HandleCompress(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
-	r.Body = http.MaxBytesReader(w, r.Body, image.MaxFileSize+1_048_576) // 1MB buffer
+	r.Body = http.MaxBytesReader(w, r.Body, core.MaxFileSize+1_048_576) // 1MB buffer
 
-	if err := r.ParseMultipartForm(image.MaxFileSize); err != nil {
+	if err := r.ParseMultipartForm(core.MaxFileSize); err != nil {
 		writeError(w, http.StatusRequestEntityTooLarge, "File is too large or the multipart body is invalid")
 		return
 	}
@@ -25,16 +25,16 @@ func HandleCompress(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	opts, err := image.ParseOptions(r)
+	opts, err := core.ParseOptions(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	img, format, data, err := image.Decode(file)
+	img, format, data, err := core.Decode(file)
 	if err != nil {
 		status := http.StatusBadRequest
-		if errors.Is(err, image.ErrFileTooLarge) {
+		if errors.Is(err, core.ErrFileTooLarge) {
 			status = http.StatusRequestEntityTooLarge
 		}
 		writeError(w, status, err.Error())
@@ -54,13 +54,13 @@ func HandleCompress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resizedImg, width, height, err := image.Resize(img, opts)
+	resizedImg, width, height, err := core.Resize(img, opts)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	out, contentType, err := image.Encode(resizedImg, outputFormat, opts.Quality)
+	out, contentType, err := core.Encode(resizedImg, outputFormat, opts.Quality)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "Failed to encode image")
 		return
