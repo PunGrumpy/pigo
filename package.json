@@ -12,10 +12,14 @@
     "typecheck": "turbo run typecheck",
     "check": "turbo run check && ultracite check",
     "fix": "turbo run fix && ultracite fix",
+    "changeset": "changeset",
+    "changeset:version": "changeset version",
+    "changeset:publish": "turbo run build && changeset publish",
     "doctor": "react-doctor",
     "prepare": "husky"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.31.0",
     "@typescript/native-preview": "^7.0.0-dev.20260702.3",
     "husky": "^9.1.7",
     "oxfmt": "^0.57.0",

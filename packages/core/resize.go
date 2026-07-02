@@ -1,4 +1,4 @@
-package image
+package core
 
 import (
 	"fmt"
@@ -50,17 +50,10 @@ func targetDimensions(srcWidth int, srcHeight int, opts CompressionOptions) (int
 	aspect := float64(srcWidth) / float64(srcHeight)
 	if opts.ResizeWidth > 0 && opts.ResizeHeight > 0 {
 		scale := math.Min(float64(opts.ResizeWidth)/float64(srcWidth), float64(opts.ResizeHeight)/float64(srcHeight))
-		return maxInt(1, int(math.Round(float64(srcWidth)*scale))), maxInt(1, int(math.Round(float64(srcHeight)*scale)))
+		return max(1, int(math.Round(float64(srcWidth)*scale))), max(1, int(math.Round(float64(srcHeight)*scale)))
 	}
 	if opts.ResizeWidth > 0 {
-		return opts.ResizeWidth, maxInt(1, int(math.Round(float64(opts.ResizeWidth)/aspect)))
+		return opts.ResizeWidth, max(1, int(math.Round(float64(opts.ResizeWidth)/aspect)))
 	}
-	return maxInt(1, int(math.Round(float64(opts.ResizeHeight)*aspect))), opts.ResizeHeight
-}
-
-func maxInt(a int, b int) int {
-	if a > b {
-		return a
-	}
-	return b
+	return max(1, int(math.Round(float64(opts.ResizeHeight)*aspect))), opts.ResizeHeight
 }

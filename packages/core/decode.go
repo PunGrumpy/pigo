@@ -1,4 +1,4 @@
-package image
+package core
 
 import (
 	"bytes"
@@ -6,6 +6,12 @@ import (
 	"fmt"
 	"image"
 	"io"
+
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
+
+	_ "golang.org/x/image/webp"
 )
 
 func Decode(r io.Reader) (image.Image, string, []byte, error) {

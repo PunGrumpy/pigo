@@ -1,4 +1,4 @@
-package image
+package core
 
 const (
 	MaxFileSize  = 10 << 20 // 10 MB
