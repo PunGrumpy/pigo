@@ -180,6 +180,12 @@ export const OptimizerControlsPanel = () => {
                       max="16384"
                       min="1"
                       type="number"
+                      className={cn(
+                        "peer h-9 w-full min-w-0 cursor-pointer appearance-none truncate rounded-md border-none bg-background-100 text-label-14 text-gray-1000 shadow-[0_0_0_1px_var(--ds-gray-alpha-400)] outline-none transition-[box-shadow,color] duration-200",
+                        "hover:shadow-[0_0_0_1px_var(--ds-gray-alpha-500)]",
+                        "focus:outline-none focus-visible:shadow-[0_0_0_1px_var(--ds-gray-600),0_0_0_3px_color-mix(in_oklch,var(--ds-gray-600)_50%,transparent)]",
+                        "disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-700 disabled:shadow-[0_0_0_1px_var(--ds-gray-alpha-400)]"
+                      )}
                       value={options.resizeWidth || ""}
                       onChange={(event) =>
                         patchOptions({
@@ -197,6 +203,12 @@ export const OptimizerControlsPanel = () => {
                     </span>
                     <Input
                       id="resize-height"
+                      className={cn(
+                        "peer h-9 w-full min-w-0 cursor-pointer appearance-none truncate rounded-md border-none bg-background-100 text-label-14 text-gray-1000 shadow-[0_0_0_1px_var(--ds-gray-alpha-400)] outline-none transition-[box-shadow,color] duration-200",
+                        "hover:shadow-[0_0_0_1px_var(--ds-gray-alpha-500)]",
+                        "focus:outline-none focus-visible:shadow-[0_0_0_1px_var(--ds-gray-600),0_0_0_3px_color-mix(in_oklch,var(--ds-gray-600)_50%,transparent)]",
+                        "disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-700 disabled:shadow-[0_0_0_1px_var(--ds-gray-alpha-400)]"
+                      )}
                       max="16384"
                       min="1"
                       type="number"
