@@ -44,7 +44,7 @@ export const Checkbox = ({
               "peer-disabled:peer-checked:border-gray-600 peer-disabled:peer-checked:bg-gray-600",
               "peer-disabled:not-peer-checked:border-gray-500 peer-disabled:not-peer-checked:bg-gray-100",
               "peer-hover:not-peer-disabled:not-peer-checked:bg-gray-200",
-              "peer-focus-visible:shadow-[0_0_0_1px_var(--ds-gray-600),0_0_0_3px_color-mix(in_oklch,var(--ds-gray-600)_50%,transparent)]",
+              "peer-focus-visible:shadow-[var(--ds-focus-ring)]",
               "peer-focus-visible:not-peer-checked:not-peer-disabled:bg-gray-200",
               "[&_svg_path]:invisible peer-checked:[&_svg_path]:visible"
             )}
