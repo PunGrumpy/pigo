@@ -1,0 +1,50 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+permissions:
+  id-token: write
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    if: ${{ !contains(github.event.head_commit.message, 'ci skip') && !contains(github.event.head_commit.message, 'skip ci') }}
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v7
+      - name: Prepare repository
+        run: git fetch --unshallow --tags
+      - name: Update NPM
+        run: npm install -g npm@latest
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.4"
+      - name: Install Dependencies
+        run: bun install
+      - name: Run tests
+        run: bun run test
+      - name: Build
+        run: bun run build
+      - name: Create Release Pull Request or Tag Release
+        id: changesets
+        uses: changesets/action@v1
+        with:
+          version: bun run changeset version
+          publish: bun run changeset publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: "" # Workaround for https://github.com/changesets/action/pull/545
