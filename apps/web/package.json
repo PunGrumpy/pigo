@@ -8,7 +8,8 @@
     "dev": "next dev --port 3000",
     "start": "next start",
     "test": "bun test",
-    "typecheck": "next typegen && tsgo --noEmit"
+    "typecheck": "next typegen && tsgo --noEmit",
+    "pigo-config": "echo @pigo/typescript-config"
   },
   "dependencies": {
     "@t3-oss/env-nextjs": "^0.13.11",
