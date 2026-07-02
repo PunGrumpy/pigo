@@ -3,6 +3,7 @@
 import { Button } from "@vercel/geistdocs/components/button";
 import { Spinner } from "@vercel/geistdocs/components/spinner";
 import { Trash2, Upload, AlertCircle } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { Logo } from "@/components/logo";
 import { OptimizerQueueItem } from "@/components/optimizer-queue-item";
@@ -10,7 +11,11 @@ import { useDragDrop } from "@/components/providers/drag-drop-provider";
 import { useOptimizerContext } from "@/components/providers/optimizer-provider";
 import { cn } from "@/lib/utils";
 
-export const OptimizerQueuePanel = () => {
+interface OptimizerQueuePanelProps {
+  status: ReactNode;
+}
+
+export const OptimizerQueuePanel = ({ status }: OptimizerQueuePanelProps) => {
   const { dropActive } = useDragDrop();
   const {
     isProcessing,
@@ -27,7 +32,7 @@ export const OptimizerQueuePanel = () => {
     if (jobs.length === 0) {
       return (
         <button
-          className="flex min-h-[16rem] w-full flex-col items-center justify-center gap-3 rounded-[6px] border border-dashed border-gray-alpha-400 bg-background-100/50 p-4 text-center hover:bg-background-100"
+          className="flex min-h-[16rem] w-full flex-col items-center justify-center gap-3 rounded-[6px] border border-dashed border-gray-alpha-400 bg-background-100 p-4 text-center hover:bg-gray-alpha-100 transition-colors"
           type="button"
           onClick={openFilePicker}
         >
@@ -113,6 +118,10 @@ export const OptimizerQueuePanel = () => {
           <span>{notice}</span>
         </div>
       )}
+
+      <div className="flex h-10 shrink-0 items-center px-4 border-t border-gray-alpha-400 bg-background-100">
+        {status}
+      </div>
 
       <div className="flex shrink-0 flex-col gap-2 border-t border-gray-alpha-400 p-3 bg-background-200">
         <Button
