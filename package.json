@@ -16,12 +16,12 @@
     "prepare": "husky"
   },
   "devDependencies": {
-    "@typescript/native-preview": "^7.0.0-dev.20260427.1",
+    "@typescript/native-preview": "^7.0.0-dev.20260702.3",
     "husky": "^9.1.7",
-    "oxfmt": "^0.56.0",
-    "oxlint": "^1.71.0",
-    "react-doctor": "^0.5.8",
-    "turbo": "^2.9.0",
+    "oxfmt": "^0.57.0",
+    "oxlint": "^1.72.0",
+    "react-doctor": "^0.6.0",
+    "turbo": "^2.10.2",
     "typescript": "^6",
     "ultracite": "7.8.3"
   },
