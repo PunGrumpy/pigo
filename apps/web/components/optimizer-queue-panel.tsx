@@ -15,64 +15,59 @@ interface OptimizerQueuePanelProps {
   status: ReactNode;
 }
 
-export const OptimizerQueuePanel = ({ status }: OptimizerQueuePanelProps) => {
-  const { dropActive } = useDragDrop();
-  const {
-    isProcessing,
-    jobs,
-    filteredJobs,
-    notice,
-    selectedId,
-    setSelectedId,
-    openFilePicker,
-    clearAll,
-  } = useOptimizerContext();
+const QueueContent = () => {
+  const { jobs, filteredJobs, selectedId, setSelectedId, openFilePicker } =
+    useOptimizerContext();
 
-  const renderContent = () => {
-    if (jobs.length === 0) {
-      return (
-        <button
-          className="flex min-h-[16rem] w-full flex-col items-center justify-center gap-3 rounded-[6px] border border-dashed border-gray-alpha-400 bg-background-100 p-4 text-center hover:bg-gray-alpha-100 transition-colors"
-          type="button"
-          onClick={openFilePicker}
-        >
-          <Upload className="size-8 text-gray-700" strokeWidth={1.5} />
-          <div className="flex flex-col gap-1">
-            <span className="text-label-13 font-medium text-gray-1000">
-              Select or drop images
-            </span>
-            <span className="text-label-12 text-gray-800">PNG, JPEG, WebP</span>
-          </div>
-        </button>
-      );
-    }
-
-    if (filteredJobs.length === 0) {
-      return (
-        <div className="flex min-h-[12rem] flex-col items-center justify-center gap-2 text-center text-gray-800 p-4">
-          <span className="text-label-13 font-medium text-gray-1000">
-            No matching images
-          </span>
-          <span className="text-label-12">
-            Try modifying your query or filters.
-          </span>
-        </div>
-      );
-    }
-
+  if (jobs.length === 0) {
     return (
-      <div className="flex flex-col gap-1">
-        {filteredJobs.map((job) => (
-          <OptimizerQueueItem
-            job={job}
-            key={job.id}
-            selected={selectedId === job.id}
-            onSelect={() => setSelectedId(job.id)}
-          />
-        ))}
+      <button
+        className="flex min-h-[16rem] w-full flex-col items-center justify-center gap-3 rounded-[6px] border border-dashed border-gray-alpha-400 bg-background-100 p-4 text-center hover:bg-gray-alpha-100 transition-colors"
+        type="button"
+        onClick={openFilePicker}
+      >
+        <Upload className="size-8 text-gray-700" strokeWidth={1.5} />
+        <div className="flex flex-col gap-1">
+          <span className="text-label-13 font-medium text-gray-1000">
+            Select or drop images
+          </span>
+          <span className="text-label-12 text-gray-800">PNG, JPEG, WebP</span>
+        </div>
+      </button>
+    );
+  }
+
+  if (filteredJobs.length === 0) {
+    return (
+      <div className="flex min-h-[12rem] flex-col items-center justify-center gap-2 text-center text-gray-800 p-4">
+        <span className="text-label-13 font-medium text-gray-1000">
+          No matching images
+        </span>
+        <span className="text-label-12">
+          Try modifying your query or filters.
+        </span>
       </div>
     );
-  };
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      {filteredJobs.map((job) => (
+        <OptimizerQueueItem
+          job={job}
+          key={job.id}
+          selected={selectedId === job.id}
+          onSelect={() => setSelectedId(job.id)}
+        />
+      ))}
+    </div>
+  );
+};
+
+export const OptimizerQueuePanel = ({ status }: OptimizerQueuePanelProps) => {
+  const { dropActive } = useDragDrop();
+  const { isProcessing, filteredJobs, notice, openFilePicker, clearAll, jobs } =
+    useOptimizerContext();
 
   return (
     <aside
@@ -108,7 +103,7 @@ export const OptimizerQueuePanel = ({ status }: OptimizerQueuePanelProps) => {
             )}
           </div>
 
-          {renderContent()}
+          <QueueContent />
         </div>
       </div>
 

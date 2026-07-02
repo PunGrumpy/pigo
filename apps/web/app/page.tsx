@@ -6,11 +6,13 @@ import { DragDropProvider } from "@/components/providers/drag-drop-provider";
 import { OptimizerProvider } from "@/components/providers/optimizer-provider";
 import { Status } from "@/components/status";
 
+const statusElement = <Status />;
+
 const Home = () => (
   <OptimizerProvider>
     <DragDropProvider>
       <div className="flex min-h-dvh w-screen flex-col bg-background-100 text-gray-1000 lg:h-dvh lg:flex-row lg:overflow-hidden">
-        <OptimizerQueuePanel status={<Status />} />
+        <OptimizerQueuePanel status={statusElement} />
 
         <div className="flex flex-1 flex-col bg-background-100 lg:overflow-hidden">
           <OptimizerTopBar />
