@@ -23,8 +23,16 @@ export const useOptimizer = () => {
   const qualityApplyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
-  const generationRef = useRef(new Map<string, number>());
-  const removedIdsRef = useRef(new Set<string>());
+  const generationRef = useRef<Map<string, number>>(
+    null as unknown as Map<string, number>
+  );
+  if (generationRef.current === (null as unknown as Map<string, number>)) {
+    generationRef.current = new Map();
+  }
+  const removedIdsRef = useRef<Set<string>>(null as unknown as Set<string>);
+  if (removedIdsRef.current === (null as unknown as Set<string>)) {
+    removedIdsRef.current = new Set();
+  }
   const [jobs, setJobs] = useState<ImageJob[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [options, setOptions] = useState<CompressionOptions>({
