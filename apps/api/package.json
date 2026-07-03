@@ -6,6 +6,7 @@
     "dev": "air .",
     "test": "go test ./...",
     "check": "go vet ./...",
-    "fix": "go fmt ./..."
+    "fix": "go fmt ./...",
+    "typecheck": "go vet ./..."
   }
 }
