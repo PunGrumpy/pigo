@@ -2,9 +2,16 @@
 
 import { Button } from "@vercel/geistdocs/components/button";
 import { Spinner } from "@vercel/geistdocs/components/spinner";
-import { ChevronsLeftRight, Download, X } from "lucide-react";
+import {
+  ChevronsLeftRight,
+  Download,
+  X,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+} from "lucide-react";
 import Image from "next/image";
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState, useEffect } from "react";
 
 import { isJobPending } from "@/lib/image/job";
 import type { ImageJob } from "@/lib/image/types";
@@ -24,7 +31,84 @@ export const OptimizerPreview = ({
   onSliderChange,
 }: OptimizerPreviewProps) => {
   const compareRef = useRef<HTMLDivElement>(null);
-  const isDraggingRef = useRef(false);
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const startPanRef = useRef({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const lastResultUrlRef = useRef<string | null>(null);
+
+  // Micro-animation on load
+  useEffect(() => {
+    if (job.result && lastResultUrlRef.current !== job.result.url) {
+      lastResultUrlRef.current = job.result.url;
+
+      let start: number | null = null;
+      // Duration of animation: 800ms
+      const duration = 800;
+      const initialValue = 0;
+      const targetValue = 50;
+
+      const animate = (timestamp: number) => {
+        if (!start) {
+          start = timestamp;
+        }
+        const elapsed = timestamp - start;
+        const progress = Math.min(elapsed / duration, 1);
+
+        // Easing function: easeOutQuart
+        const ease = 1 - (1 - progress) ** 4;
+        const nextValue = initialValue + (targetValue - initialValue) * ease;
+
+        onSliderChange(job, Math.round(nextValue));
+
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        }
+      };
+
+      onSliderChange(job, initialValue);
+      requestAnimationFrame(animate);
+    }
+  }, [job, onSliderChange]);
+
+  // Wheel Zoom event listener
+  useEffect(() => {
+    const el = compareRef.current;
+    if (!el) {
+      return;
+    }
+
+    const handleWheel = (e: WheelEvent) => {
+      if (!job.result) {
+        return;
+      }
+      e.preventDefault();
+
+      const zoomFactor = 1.15;
+      setZoom((currentZoom) => {
+        const nextZoom =
+          e.deltaY < 0
+            ? Math.min(8, currentZoom * zoomFactor)
+            : Math.max(1, currentZoom / zoomFactor);
+
+        if (nextZoom === 1) {
+          setPan({ x: 0, y: 0 });
+        } else {
+          setPan((prev) => ({
+            x: prev.x * (nextZoom / currentZoom),
+            y: prev.y * (nextZoom / currentZoom),
+          }));
+        }
+        return nextZoom;
+      });
+    };
+
+    el.addEventListener("wheel", handleWheel, { passive: false });
+    return () => {
+      el.removeEventListener("wheel", handleWheel);
+    };
+  }, [job.result]);
 
   const updateFromPointer = useCallback(
     (clientX: number) => {
@@ -46,27 +130,64 @@ export const OptimizerPreview = ({
       return;
     }
     event.preventDefault();
+
+    const rect = compareRef.current?.getBoundingClientRect();
+    if (!rect) {
+      return;
+    }
+
+    const clickXPercent = ((event.clientX - rect.left) / rect.width) * 100;
+    // Check if pointer is within 5% range of divider
+    const isNearDivider = Math.abs(clickXPercent - job.slider) < 5;
+
     event.currentTarget.setPointerCapture(event.pointerId);
-    isDraggingRef.current = true;
-    updateFromPointer(event.clientX);
+
+    if (zoom > 1 && !isNearDivider) {
+      setIsPanning(true);
+      startPanRef.current = {
+        x: event.clientX - pan.x,
+        y: event.clientY - pan.y,
+      };
+    } else {
+      setIsDragging(true);
+      updateFromPointer(event.clientX);
+    }
   };
 
   const onComparePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDraggingRef.current) {
-      return;
+    if (isDragging) {
+      updateFromPointer(event.clientX);
+    } else if (isPanning) {
+      const nextX = event.clientX - startPanRef.current.x;
+      const nextY = event.clientY - startPanRef.current.y;
+
+      const maxPanX = (zoom - 1) * 400;
+      const maxPanY = (zoom - 1) * 400;
+
+      setPan({
+        x: Math.min(maxPanX, Math.max(-maxPanX, nextX)),
+        y: Math.min(maxPanY, Math.max(-maxPanY, nextY)),
+      });
     }
-    updateFromPointer(event.clientX);
   };
 
   const endCompareDrag = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDraggingRef.current) {
-      return;
-    }
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
-    isDraggingRef.current = false;
+    setIsDragging(false);
+    setIsPanning(false);
   };
+
+  // Cursor logic based on zoom and drag state
+  let cursorClass = "";
+  if (job.result) {
+    if (zoom > 1) {
+      cursorClass = isPanning ? "cursor-grabbing" : "cursor-grab";
+    } else {
+      cursorClass = "cursor-ew-resize";
+    }
+  }
 
   return (
     <div className="flex flex-col gap-4 lg:min-h-0 lg:flex-1">
@@ -106,7 +227,7 @@ export const OptimizerPreview = ({
         ref={compareRef}
         className={cn(
           "relative flex min-h-[50vh] touch-none items-center justify-center overflow-hidden rounded-[6px] bg-gray-100 select-none lg:min-h-0 lg:flex-1",
-          job.result && "cursor-ew-resize"
+          cursorClass
         )}
         onPointerCancel={endCompareDrag}
         onPointerDown={onComparePointerDown}
@@ -119,6 +240,10 @@ export const OptimizerPreview = ({
           draggable={false}
           height={job.height}
           src={job.originalUrl}
+          style={{
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            transformOrigin: "center",
+          }}
           unoptimized
           width={job.width}
         />
@@ -134,6 +259,10 @@ export const OptimizerPreview = ({
                 draggable={false}
                 height={job.result.height}
                 src={job.result.url}
+                style={{
+                  transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                  transformOrigin: "center",
+                }}
                 unoptimized
                 width={job.result.width}
               />
@@ -141,19 +270,26 @@ export const OptimizerPreview = ({
 
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-y-0 z-10 w-px -translate-x-1/2 bg-background-100 ring-1 ring-gray-alpha-400"
+              className={cn(
+                "pointer-events-none absolute inset-y-0 z-10 w-px -translate-x-1/2 bg-background-100 ring-1",
+                isDragging
+                  ? "ring-blue-600 shadow-[0_0_8px_rgba(0,112,243,0.3)]"
+                  : "ring-gray-alpha-400"
+              )}
               style={{ left: `${job.slider}%` }}
             />
 
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute top-1/2 z-20 flex size-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-gray-alpha-400 bg-background-100 shadow-xs"
+              className={cn(
+                "pointer-events-none absolute top-1/2 z-20 flex size-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border bg-background-100 shadow-sm transition-[transform,border-color,box-shadow] duration-150 ease-out",
+                isDragging
+                  ? "scale-110 border-blue-600 text-blue-600 shadow-[0_0_12px_rgba(0,112,243,0.2)]"
+                  : "border-gray-alpha-400 text-gray-1000 hover:scale-105 hover:border-gray-alpha-500"
+              )}
               style={{ left: `${job.slider}%` }}
             >
-              <ChevronsLeftRight
-                className="size-4 text-gray-1000"
-                strokeWidth={2}
-              />
+              <ChevronsLeftRight className="size-4" strokeWidth={2} />
             </div>
 
             <span className="pointer-events-none absolute top-3 left-3 z-20 hidden rounded-[6px] border border-gray-alpha-400 bg-background-100 px-2 py-1 text-label-12 text-gray-1000 shadow-xs sm:inline">
@@ -162,6 +298,55 @@ export const OptimizerPreview = ({
             <span className="pointer-events-none absolute top-3 right-3 z-20 hidden rounded-[6px] border border-gray-alpha-400 bg-background-100 px-2 py-1 text-label-12 text-gray-1000 shadow-xs sm:inline">
               Optimized
             </span>
+
+            {/* Zoom Control Panel */}
+            <div
+              className="absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1 rounded-full border border-gray-alpha-300 bg-background-100/90 px-2 py-1 shadow-sm backdrop-blur-md"
+              onPointerCancel={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+              onPointerMove={(e) => e.stopPropagation()}
+              onPointerUp={(e) => e.stopPropagation()}
+            >
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                disabled={zoom <= 1}
+                onClick={() => {
+                  const next = Math.max(1, zoom / 1.5);
+                  setZoom(next);
+                  if (next === 1) {
+                    setPan({ x: 0, y: 0 });
+                  }
+                }}
+              >
+                <ZoomOut className="size-3 text-gray-800" />
+              </Button>
+              <span className="min-w-[3.5rem] text-center text-[11px] font-mono font-medium text-gray-1000">
+                {Math.round(zoom * 100)}%
+              </span>
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                disabled={zoom >= 8}
+                onClick={() => setZoom(Math.min(8, zoom * 1.5))}
+              >
+                <ZoomIn className="size-3 text-gray-800" />
+              </Button>
+              {zoom > 1 && (
+                <Button
+                  className="ml-1 text-[11px] px-2 h-6 flex items-center gap-1"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setZoom(1);
+                    setPan({ x: 0, y: 0 });
+                  }}
+                >
+                  <RotateCcw className="size-3 text-gray-800" />
+                  Reset
+                </Button>
+              )}
+            </div>
           </>
         ) : null}
 
