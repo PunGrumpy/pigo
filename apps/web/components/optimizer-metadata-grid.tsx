@@ -71,5 +71,98 @@ export const OptimizerMetadataGrid = ({ job }: OptimizerMetadataGridProps) => (
         )}
       </span>
     </div>
+
+    {/* EXIF Data */}
+    {job.exif && Object.keys(job.exif).length > 0 && (
+      <>
+        <div className="px-3 py-1.5 bg-gray-200/60 text-[10px] font-bold text-gray-800 uppercase tracking-wider">
+          Camera & EXIF Data
+        </div>
+        {job.exif.make && (
+          <div className="flex justify-between items-center px-3 py-2">
+            <span className="text-gray-900">Camera Maker</span>
+            <span
+              className="font-mono font-medium text-gray-1000 truncate max-w-[12rem] text-right"
+              title={job.exif.make}
+            >
+              {job.exif.make}
+            </span>
+          </div>
+        )}
+        {job.exif.model && (
+          <div className="flex justify-between items-center px-3 py-2">
+            <span className="text-gray-900">Camera Model</span>
+            <span
+              className="font-mono font-medium text-gray-1000 truncate max-w-[12rem] text-right"
+              title={job.exif.model}
+            >
+              {job.exif.model}
+            </span>
+          </div>
+        )}
+        {job.exif.exposureTime && (
+          <div className="flex justify-between items-center px-3 py-2">
+            <span className="text-gray-900">Exposure</span>
+            <span className="font-mono font-medium text-gray-1000 text-right">
+              {job.exif.exposureTime}
+            </span>
+          </div>
+        )}
+        {job.exif.fNumber && (
+          <div className="flex justify-between items-center px-3 py-2">
+            <span className="text-gray-900">Aperture</span>
+            <span className="font-mono font-medium text-gray-1000 text-right">
+              {job.exif.fNumber}
+            </span>
+          </div>
+        )}
+        {job.exif.iso && (
+          <div className="flex justify-between items-center px-3 py-2">
+            <span className="text-gray-900">ISO Speed</span>
+            <span className="font-mono font-medium text-gray-1000 text-right">
+              {job.exif.iso}
+            </span>
+          </div>
+        )}
+        {job.exif.focalLength && (
+          <div className="flex justify-between items-center px-3 py-2">
+            <span className="text-gray-900">Focal Length</span>
+            <span className="font-mono font-medium text-gray-1000 text-right">
+              {job.exif.focalLength}
+            </span>
+          </div>
+        )}
+        {job.exif.software && (
+          <div className="flex justify-between items-center px-3 py-2">
+            <span className="text-gray-900">Software</span>
+            <span
+              className="font-mono font-medium text-gray-1000 truncate max-w-[12rem] text-right"
+              title={job.exif.software}
+            >
+              {job.exif.software}
+            </span>
+          </div>
+        )}
+        {job.exif.dateTime && (
+          <div className="flex justify-between items-center px-3 py-2">
+            <span className="text-gray-900">Date Taken</span>
+            <span
+              className="font-mono font-medium text-gray-1000 truncate max-w-[12rem] text-right"
+              title={job.exif.dateTime}
+            >
+              {job.exif.dateTime}
+            </span>
+          </div>
+        )}
+      </>
+    )}
+
+    {/* Metadata stripping warning */}
+    {job.result && (
+      <div className="px-3 py-2.5 bg-amber-100/20 text-[11px] text-amber-1000 font-medium leading-relaxed">
+        EXIF metadata has been stripped from the output image for maximum size
+        savings and privacy.
+      </div>
+    )}
   </div>
 );
