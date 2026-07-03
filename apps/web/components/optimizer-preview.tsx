@@ -321,6 +321,7 @@ export const OptimizerPreview = ({
               <Button
                 size="icon-sm"
                 variant="ghost"
+                className="rounded-full"
                 disabled={zoom <= 1}
                 onClick={() => {
                   const next = Math.max(1, zoom / 1.5);
@@ -338,6 +339,7 @@ export const OptimizerPreview = ({
               <Button
                 size="icon-sm"
                 variant="ghost"
+                className="rounded-full"
                 disabled={zoom >= 8}
                 onClick={() => setZoom(Math.min(8, zoom * 1.5))}
               >
@@ -345,7 +347,7 @@ export const OptimizerPreview = ({
               </Button>
               {zoom > 1 && (
                 <Button
-                  className="ml-1 text-[11px] px-2 h-6 flex items-center gap-1 animate-in fade-in zoom-in-95 slide-in-from-left-2 duration-150 ease-out cursor-pointer"
+                  className="ml-1 text-[11px] px-2 h-8 flex items-center gap-1 animate-in fade-in zoom-in-95 slide-in-from-left-2 duration-150 ease-out cursor-pointer rounded-full"
                   size="sm"
                   variant="ghost"
                   onClick={() => {
