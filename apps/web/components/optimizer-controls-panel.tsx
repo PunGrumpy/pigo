@@ -2,6 +2,7 @@
 
 import { Button } from "@vercel/geistdocs/components/button";
 import { Input } from "@vercel/geistdocs/components/input";
+import { Spinner } from "@vercel/geistdocs/components/spinner";
 import {
   Download,
   ChevronDown,
@@ -30,6 +31,8 @@ export const OptimizerControlsPanel = () => {
     applyOptions,
     downloadAll,
     patchOptions,
+    zipGenerating,
+    zipProgress,
   } = useOptimizerContext();
 
   const completedCount = completedJobs.length;
@@ -43,6 +46,18 @@ export const OptimizerControlsPanel = () => {
 
   const saved = totalCompressed <= totalOriginal;
   const multipleDownloads = completedCount > 1;
+
+  let downloadLabel = "Download Image";
+  let downloadIcon = <Download aria-hidden="true" className="size-4" />;
+  if (zipGenerating) {
+    downloadLabel = `Generating ZIP (${zipProgress}%)…`;
+    downloadIcon = (
+      <Spinner aria-label="Generating ZIP" className="size-4 text-gray-700" />
+    );
+  } else if (multipleDownloads) {
+    downloadLabel = "Download ZIP Archive";
+    downloadIcon = <FileArchive aria-hidden="true" className="size-4" />;
+  }
 
   return (
     <aside
@@ -266,17 +281,13 @@ export const OptimizerControlsPanel = () => {
           {applyLabel}
         </Button>
         <Button
-          disabled={completedCount === 0}
+          disabled={completedCount === 0 || zipGenerating}
           type="button"
           onClick={downloadAll}
           className="w-full flex items-center justify-center gap-2"
         >
-          {multipleDownloads ? (
-            <FileArchive aria-hidden="true" className="size-4" />
-          ) : (
-            <Download aria-hidden="true" className="size-4" />
-          )}
-          {multipleDownloads ? "Download ZIP Archive" : "Download Image"}
+          {downloadIcon}
+          {downloadLabel}
         </Button>
       </div>
     </aside>

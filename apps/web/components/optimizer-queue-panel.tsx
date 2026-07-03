@@ -64,8 +64,16 @@ const QueueContent = () => {
 
 export const OptimizerQueuePanel = () => {
   const { dropActive } = useDragDrop();
-  const { isProcessing, filteredJobs, notice, openFilePicker, clearAll, jobs } =
-    useOptimizerContext();
+  const {
+    isProcessing,
+    filteredJobs,
+    notice,
+    openFilePicker,
+    clearAll,
+    jobs,
+    processPercent,
+    processedCount,
+  } = useOptimizerContext();
 
   return (
     <aside
@@ -100,6 +108,23 @@ export const OptimizerQueuePanel = () => {
               />
             )}
           </div>
+
+          {isProcessing && jobs.length > 0 && (
+            <div className="px-2 pt-1 pb-2 flex flex-col gap-1.5 border-b border-gray-alpha-200 mb-1">
+              <div className="flex justify-between items-center text-[11px] text-gray-800 font-mono">
+                <span>Optimizing images…</span>
+                <span>
+                  {processedCount}/{jobs.length} ({processPercent}%)
+                </span>
+              </div>
+              <div className="h-1 bg-gray-alpha-300 w-full rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gray-1000 transition-all duration-300 ease-out"
+                  style={{ width: `${processPercent}%` }}
+                />
+              </div>
+            </div>
+          )}
 
           <QueueContent />
         </div>
