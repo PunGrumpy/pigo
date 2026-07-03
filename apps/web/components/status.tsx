@@ -47,27 +47,12 @@ export const Status = () => {
     };
   }, []);
 
-  let statusColor =
-    "bg-geist-error shadow-[0_0_8px_color-mix(in_srgb,var(--geist-error)_50%,transparent)]";
-  let statusLabel = "API offline";
-  let textColor = "text-geist-error";
-
-  if (status === "ok") {
-    statusColor =
-      "bg-geist-success shadow-[0_0_8px_color-mix(in_srgb,var(--geist-success)_50%,transparent)]";
-    statusLabel = "All systems normal";
-    textColor = "text-geist-success";
-  } else if (status === "warning") {
-    statusColor =
-      "bg-geist-warning shadow-[0_0_8px_color-mix(in_srgb,var(--geist-warning)_50%,transparent)]";
-    statusLabel = "Partial outage";
-    textColor = "text-geist-warning";
-  } else if (status === "error") {
-    statusColor =
-      "bg-geist-error shadow-[0_0_8px_color-mix(in_srgb,var(--geist-error)_50%,transparent)]";
-    statusLabel = "Degraded performance";
-    textColor = "text-geist-error";
-  }
+  const statusLabel = {
+    error: "Degraded performance",
+    offline: "API offline",
+    ok: "All systems normal",
+    warning: "Partial outage",
+  }[status];
 
   return (
     <a
@@ -81,13 +66,20 @@ export const Status = () => {
         <span
           className={cn(
             "status-dot shrink-0 inline-block size-2.5 rounded-full transition-all duration-300",
-            statusColor
+            status === "ok" &&
+              "bg-geist-success shadow-[0_0_8px_color-mix(in_srgb,var(--geist-success)_50%,transparent)]",
+            status === "warning" &&
+              "bg-geist-warning shadow-[0_0_8px_color-mix(in_srgb,var(--geist-warning)_50%,transparent)]",
+            (status === "error" || status === "offline") &&
+              "bg-geist-error shadow-[0_0_8px_color-mix(in_srgb,var(--geist-error)_50%,transparent)]"
           )}
         />
         <p
           className={cn(
             "status-text text-copy-14 geist-ellipsis font-mono font-medium uppercase text-[12px] transition-all duration-300",
-            textColor
+            status === "ok" && "text-geist-success",
+            status === "warning" && "text-geist-warning",
+            (status === "error" || status === "offline") && "text-geist-error"
           )}
         >
           {statusLabel}.
