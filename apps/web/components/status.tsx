@@ -7,6 +7,21 @@ import { cn } from "@/lib/utils";
 
 type StatusType = "ok" | "warning" | "error" | "offline";
 
+const fetchHealth = async (
+  signal: AbortSignal
+): Promise<{ status?: string } | null> => {
+  const response = await fetch(`${env.NEXT_PUBLIC_API_URL}/health`, {
+    cache: "no-store",
+    signal,
+  });
+
+  if (response.ok) {
+    return (await response.json()) as { status?: string };
+  }
+
+  return null;
+};
+
 export const Status = () => {
   const [status, setStatus] = useState<StatusType>("offline");
 
@@ -15,20 +30,12 @@ export const Status = () => {
 
     const checkHealth = async (): Promise<void> => {
       try {
-        const response = await fetch(`${env.NEXT_PUBLIC_API_URL}/health`, {
-          cache: "no-store",
-          signal: controller.signal,
-        });
+        const data = await fetchHealth(controller.signal);
 
-        if (response.ok) {
-          const data = (await response.json()) as { status?: string };
-          if (data?.status === "ok") {
-            setStatus("ok");
-          } else if (data?.status === "warning") {
-            setStatus("warning");
-          } else {
-            setStatus("error");
-          }
+        if (data?.status === "ok") {
+          setStatus("ok");
+        } else if (data?.status === "warning") {
+          setStatus("warning");
         } else {
           setStatus("error");
         }
