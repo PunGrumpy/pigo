@@ -11,17 +11,14 @@ export const Status = () => {
   const [status, setStatus] = useState<StatusType>("offline");
 
   useEffect(() => {
-    let active = true;
+    const controller = new AbortController();
 
     const checkHealth = async (): Promise<void> => {
       try {
         const response = await fetch(`${env.NEXT_PUBLIC_API_URL}/health`, {
           cache: "no-store",
+          signal: controller.signal,
         });
-
-        if (!active) {
-          return;
-        }
 
         if (response.ok) {
           const data = (await response.json()) as { status?: string };
@@ -35,17 +32,18 @@ export const Status = () => {
         } else {
           setStatus("error");
         }
-      } catch {
-        if (active) {
-          setStatus("offline");
+      } catch (error: unknown) {
+        if (error instanceof Error && error.name === "AbortError") {
+          return;
         }
+        setStatus("offline");
       }
     };
 
     void checkHealth();
 
     return () => {
-      active = false;
+      controller.abort();
     };
   }, []);
 
