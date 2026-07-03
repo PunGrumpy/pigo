@@ -3,19 +3,13 @@
 import { Button } from "@vercel/geistdocs/components/button";
 import { Input } from "@vercel/geistdocs/components/input";
 import { Spinner } from "@vercel/geistdocs/components/spinner";
-import {
-  Download,
-  ChevronDown,
-  FileArchive,
-  RefreshCw,
-  Info,
-} from "lucide-react";
+import { Download, FileArchive, RefreshCw, Info } from "lucide-react";
 
 import { OptimizerMetadataGrid } from "@/components/optimizer-metadata-grid";
 import { useOptimizerContext } from "@/components/providers/optimizer-provider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatBytes, formatSavings } from "@/lib/image/format";
-import type { CompressionOptions, OutputChoice } from "@/lib/image/types";
+import type { CompressionOptions } from "@/lib/image/types";
 import { cn } from "@/lib/utils";
 
 export const OptimizerControlsPanel = () => {
@@ -111,35 +105,33 @@ export const OptimizerControlsPanel = () => {
             Compression Settings
           </h3>
 
-          <label className="flex flex-col gap-1.5" htmlFor="output-format">
+          <div className="flex flex-col gap-1.5">
             <span className="text-label-12 text-gray-800">Output Format</span>
-            <div className="relative">
-              <select
-                className={cn(
-                  "peer h-9 w-full min-w-0 cursor-pointer appearance-none truncate rounded-md border-none bg-background-100 px-3 pr-9 text-label-14 text-gray-1000 shadow-[0_0_0_1px_var(--ds-gray-alpha-400)] outline-none transition-[box-shadow,color] duration-200",
-                  "hover:shadow-[0_0_0_1px_var(--ds-gray-alpha-500)]",
-                  "focus:outline-none focus-visible:shadow-[var(--ds-focus-ring)]",
-                  "disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-700 disabled:shadow-[0_0_0_1px_var(--ds-gray-alpha-400)]"
-                )}
-                id="output-format"
-                value={options.outputFormat}
-                onChange={(event) =>
-                  patchOptions({
-                    outputFormat: event.target.value as OutputChoice,
-                  })
-                }
-              >
-                <option value="same">Same</option>
-                <option value="jpeg">JPEG</option>
-                <option value="png">PNG</option>
-                <option value="webp">WebP</option>
-              </select>
-              <ChevronDown
-                aria-hidden="true"
-                className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-gray-700"
-              />
+            <div className="grid grid-cols-4 rounded-md bg-gray-200 p-0.5 gap-0.5 border border-gray-alpha-300">
+              {(["same", "jpeg", "png", "webp"] as const).map((format) => {
+                const isActive = options.outputFormat === format;
+                return (
+                  <button
+                    key={format}
+                    type="button"
+                    className={cn(
+                      "h-8 rounded-md text-[11px] font-medium transition-all duration-150 outline-none uppercase select-none cursor-pointer",
+                      isActive
+                        ? "bg-background-100 text-gray-1000 shadow-2xs font-semibold"
+                        : "text-gray-800 hover:text-gray-1000"
+                    )}
+                    onClick={() =>
+                      patchOptions({
+                        outputFormat: format,
+                      })
+                    }
+                  >
+                    {format === "same" ? "Same" : format}
+                  </button>
+                );
+              })}
             </div>
-          </label>
+          </div>
 
           <label
             aria-label="Quality"
