@@ -19,6 +19,53 @@ interface DragDropContextType {
 
 const DragDropContext = createContext<DragDropContextType | null>(null);
 
+const traverseFileTree = async (item: DataTransferItem): Promise<File[]> => {
+  if (typeof item.webkitGetAsEntry !== "function") {
+    return [];
+  }
+  const entry = item.webkitGetAsEntry();
+  if (!entry) {
+    return [];
+  }
+
+  const files: File[] = [];
+
+  const traverse = async (currentEntry: FileSystemEntry): Promise<void> => {
+    if (currentEntry.isFile) {
+      // eslint-disable-next-line promise/avoid-new
+      const file = await new Promise<File>((resolve, reject) => {
+        (currentEntry as FileSystemFileEntry).file(resolve, reject);
+      });
+      files.push(file);
+    } else if (currentEntry.isDirectory) {
+      const dirReader = (
+        currentEntry as FileSystemDirectoryEntry
+      ).createReader();
+
+      const readBatch = (): Promise<FileSystemEntry[]> =>
+        // eslint-disable-next-line promise/avoid-new
+        new Promise<FileSystemEntry[]>((resolve, reject) => {
+          dirReader.readEntries(resolve, reject);
+        });
+
+      const readAllEntries = async (): Promise<FileSystemEntry[]> => {
+        const batch = await readBatch();
+        if (batch.length === 0) {
+          return [];
+        }
+        const nextBatch = await readAllEntries();
+        return [...batch, ...nextBatch];
+      };
+
+      const allEntries = await readAllEntries();
+      await Promise.all(allEntries.map((childEntry) => traverse(childEntry)));
+    }
+  };
+
+  await traverse(entry);
+  return files;
+};
+
 export const DragDropProvider = ({ children }: PropsWithChildren) => {
   const [dropActive, setDropActive] = useState(false);
   const { addFiles } = useOptimizerContext();
@@ -45,13 +92,27 @@ export const DragDropProvider = ({ children }: PropsWithChildren) => {
   }, []);
 
   const handleDrop = useCallback(
-    (event: DragEvent) => {
+    async (event: DragEvent) => {
       event.preventDefault();
       dragCounter.current = 0;
       setDropActive(false);
 
-      if (event.dataTransfer?.files && event.dataTransfer.files.length > 0) {
-        void addFiles(event.dataTransfer.files);
+      if (event.dataTransfer?.items) {
+        const items = [...event.dataTransfer.items].filter(
+          (item) => item.kind === "file"
+        );
+        const filePromises = items.map((item) => traverseFileTree(item));
+        const fileGroups = await Promise.all(filePromises);
+        const allFiles = fileGroups.flat();
+
+        if (allFiles.length > 0) {
+          void addFiles(allFiles);
+        }
+      } else if (
+        event.dataTransfer?.files &&
+        event.dataTransfer.files.length > 0
+      ) {
+        void addFiles([...event.dataTransfer.files]);
       }
     },
     [addFiles]
