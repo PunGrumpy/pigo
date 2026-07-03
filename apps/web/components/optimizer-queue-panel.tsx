@@ -3,17 +3,13 @@
 import { Button } from "@vercel/geistdocs/components/button";
 import { Spinner } from "@vercel/geistdocs/components/spinner";
 import { Trash2, Upload, AlertCircle } from "lucide-react";
-import type { ReactNode } from "react";
 
 import { Logo } from "@/components/logo";
 import { OptimizerQueueItem } from "@/components/optimizer-queue-item";
 import { useDragDrop } from "@/components/providers/drag-drop-provider";
 import { useOptimizerContext } from "@/components/providers/optimizer-provider";
+import { Status } from "@/components/status";
 import { cn } from "@/lib/utils";
-
-interface OptimizerQueuePanelProps {
-  status: ReactNode;
-}
 
 const QueueContent = () => {
   const { jobs, filteredJobs, selectedId, setSelectedId, openFilePicker } =
@@ -64,7 +60,7 @@ const QueueContent = () => {
   );
 };
 
-export const OptimizerQueuePanel = ({ status }: OptimizerQueuePanelProps) => {
+export const OptimizerQueuePanel = () => {
   const { dropActive } = useDragDrop();
   const { isProcessing, filteredJobs, notice, openFilePicker, clearAll, jobs } =
     useOptimizerContext();
@@ -115,7 +111,7 @@ export const OptimizerQueuePanel = ({ status }: OptimizerQueuePanelProps) => {
       )}
 
       <div className="flex h-10 shrink-0 items-center px-3 border-t border-gray-alpha-400 bg-background-200">
-        {status}
+        <Status />
       </div>
 
       <div className="flex shrink-0 flex-col gap-2 border-t border-gray-alpha-400 p-3 bg-background-200">
