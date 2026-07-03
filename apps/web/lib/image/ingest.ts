@@ -1,4 +1,5 @@
 import { readDimensions } from "@/lib/compress/browser";
+import { parseJpegExif } from "@/lib/image/exif";
 import { formatFromMime } from "@/lib/image/format";
 import type { ImageFormat, ImageJob } from "@/lib/image/types";
 import { validateDimensions, validateFile } from "@/lib/image/validation";
@@ -56,7 +57,10 @@ const jobFromFile = async (
       return dimensionError;
     }
 
+    const exif = file.type === "image/jpeg" ? await parseJpegExif(file) : null;
+
     return {
+      exif,
       file,
       height: dimensions.height,
       id: crypto.randomUUID(),

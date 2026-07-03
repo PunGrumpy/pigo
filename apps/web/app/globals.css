@@ -683,3 +683,26 @@
 @utility geist-ellipsis {
   @apply text-ellipsis overflow-hidden whitespace-nowrap wrap-normal max-w-full inline-block;
 }
+
+@utility scrollbar-geist {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ds-gray-alpha-300) transparent;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: var(--ds-gray-alpha-300);
+    border-radius: 9999px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background-color: var(--ds-gray-alpha-500);
+  }
+}

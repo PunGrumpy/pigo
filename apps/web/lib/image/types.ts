@@ -1,4 +1,5 @@
 import type { ACCEPTED_MIME_TYPES } from "./constants";
+import type { ExifData } from "./exif";
 
 export type AcceptedMimeType = (typeof ACCEPTED_MIME_TYPES)[number];
 export type ImageFormat = "jpeg" | "png" | "webp";
@@ -46,4 +47,5 @@ export interface ImageJob {
   slider: number;
   error?: string;
   result?: ImageResult;
+  exif?: ExifData | null;
 }
