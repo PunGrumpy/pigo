@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "go",
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "https://pigo.pungrumpy.com",
+      "permanent": true
+    }
+  ]
+}
