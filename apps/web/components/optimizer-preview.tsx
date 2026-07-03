@@ -179,6 +179,11 @@ export const OptimizerPreview = ({
     setIsPanning(false);
   };
 
+  const imageTransitionClass =
+    !isPanning && !isDragging
+      ? "transition-transform duration-300 ease-out"
+      : "";
+
   // Cursor logic based on zoom and drag state
   let cursorClass = "";
   if (job.result) {
@@ -236,7 +241,10 @@ export const OptimizerPreview = ({
       >
         <Image
           alt={`Original ${job.name}`}
-          className="max-h-full max-w-full object-contain"
+          className={cn(
+            "max-h-full max-w-full object-contain",
+            imageTransitionClass
+          )}
           draggable={false}
           height={job.height}
           src={job.originalUrl}
@@ -255,7 +263,10 @@ export const OptimizerPreview = ({
             >
               <Image
                 alt={`Optimized ${job.name}`}
-                className="max-h-full max-w-full object-contain"
+                className={cn(
+                  "max-h-full max-w-full object-contain",
+                  imageTransitionClass
+                )}
                 draggable={false}
                 height={job.result.height}
                 src={job.result.url}
@@ -334,7 +345,7 @@ export const OptimizerPreview = ({
               </Button>
               {zoom > 1 && (
                 <Button
-                  className="ml-1 text-[11px] px-2 h-6 flex items-center gap-1"
+                  className="ml-1 text-[11px] px-2 h-6 flex items-center gap-1 animate-in fade-in zoom-in-95 slide-in-from-left-2 duration-150 ease-out cursor-pointer"
                   size="sm"
                   variant="ghost"
                   onClick={() => {
