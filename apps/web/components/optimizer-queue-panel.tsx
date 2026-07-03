@@ -95,7 +95,7 @@ export const OptimizerQueuePanel = () => {
         </div>
       </div>
 
-      <div className="overflow-y-auto p-3 lg:flex-1">
+      <div className="overflow-y-auto p-3 lg:flex-1 scrollbar-geist">
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between px-2 py-1">
             <span className="text-label-13 font-medium text-gray-900">

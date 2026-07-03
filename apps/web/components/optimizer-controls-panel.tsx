@@ -64,7 +64,7 @@ export const OptimizerControlsPanel = () => {
         </span>
       </div>
 
-      <div className="p-4 flex flex-col gap-6 lg:flex-1 lg:overflow-y-auto">
+      <div className="p-4 flex flex-col gap-6 lg:flex-1 lg:overflow-y-auto scrollbar-geist">
         <div className="flex flex-col gap-2">
           <h3 className="text-label-13 font-medium text-gray-900">
             Total Savings
