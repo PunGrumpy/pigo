@@ -24,6 +24,66 @@ interface OptimizerPreviewProps {
   onSliderChange: (job: ImageJob, value: number) => void;
 }
 
+interface ZoomControlsProps {
+  zoom: number;
+  setZoom: React.Dispatch<React.SetStateAction<number>>;
+  setPan: React.Dispatch<React.SetStateAction<{ x: number; y: number }>>;
+}
+
+const ZoomControls = ({ zoom, setZoom, setPan }: ZoomControlsProps) => (
+  <div
+    className="absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1 rounded-full border border-gray-alpha-300 bg-background-100/90 px-2 py-1 shadow-sm backdrop-blur-md"
+    onPointerCancel={(e) => e.stopPropagation()}
+    onPointerDown={(e) => e.stopPropagation()}
+    onPointerMove={(e) => e.stopPropagation()}
+    onPointerUp={(e) => e.stopPropagation()}
+  >
+    <Button
+      size="icon-sm"
+      variant="ghost"
+      className="rounded-full"
+      disabled={zoom <= 1}
+      onClick={() => {
+        setZoom((prev) => {
+          const next = Math.max(1, prev / 1.5);
+          if (next === 1) {
+            setPan({ x: 0, y: 0 });
+          }
+          return next;
+        });
+      }}
+    >
+      <ZoomOut className="size-3 text-gray-800" />
+    </Button>
+    <span className="min-w-[3.5rem] text-center text-[11px] font-mono font-medium text-gray-1000">
+      {Math.round(zoom * 100)}%
+    </span>
+    <Button
+      size="icon-sm"
+      variant="ghost"
+      className="rounded-full"
+      disabled={zoom >= 8}
+      onClick={() => setZoom((prev) => Math.min(8, prev * 1.5))}
+    >
+      <ZoomIn className="size-3 text-gray-800" />
+    </Button>
+    {zoom > 1 && (
+      <Button
+        className="ml-1 text-[11px] px-2 h-8 flex items-center gap-1 animate-in fade-in zoom-in-95 slide-in-from-left-2 duration-150 ease-out cursor-pointer rounded-full"
+        size="sm"
+        variant="ghost"
+        onClick={() => {
+          setZoom(1);
+          setPan({ x: 0, y: 0 });
+        }}
+      >
+        <RotateCcw className="size-3 text-gray-800" />
+        Reset
+      </Button>
+    )}
+  </div>
+);
+
 export const OptimizerPreview = ({
   job,
   onDownload,
@@ -179,21 +239,6 @@ export const OptimizerPreview = ({
     setIsPanning(false);
   };
 
-  const imageTransitionClass =
-    !isPanning && !isDragging
-      ? "transition-transform duration-300 ease-out"
-      : "";
-
-  // Cursor logic based on zoom and drag state
-  let cursorClass = "";
-  if (job.result) {
-    if (zoom > 1) {
-      cursorClass = isPanning ? "cursor-grabbing" : "cursor-grab";
-    } else {
-      cursorClass = "cursor-ew-resize";
-    }
-  }
-
   return (
     <div className="flex flex-col gap-4 lg:min-h-0 lg:flex-1">
       <div className="flex shrink-0 items-start justify-between gap-4">
@@ -232,7 +277,9 @@ export const OptimizerPreview = ({
         ref={compareRef}
         className={cn(
           "relative flex min-h-[50vh] touch-none items-center justify-center overflow-hidden rounded-[6px] bg-gray-100 select-none lg:min-h-0 lg:flex-1",
-          cursorClass
+          job.result && zoom > 1 && isPanning && "cursor-grabbing",
+          job.result && zoom > 1 && !isPanning && "cursor-grab",
+          job.result && zoom <= 1 && "cursor-ew-resize"
         )}
         onPointerCancel={endCompareDrag}
         onPointerDown={onComparePointerDown}
@@ -243,7 +290,9 @@ export const OptimizerPreview = ({
           alt={`Original ${job.name}`}
           className={cn(
             "max-h-full max-w-full object-contain",
-            imageTransitionClass
+            !isPanning &&
+              !isDragging &&
+              "transition-transform duration-300 ease-out"
           )}
           draggable={false}
           height={job.height}
@@ -265,7 +314,9 @@ export const OptimizerPreview = ({
                 alt={`Optimized ${job.name}`}
                 className={cn(
                   "max-h-full max-w-full object-contain",
-                  imageTransitionClass
+                  !isPanning &&
+                    !isDragging &&
+                    "transition-transform duration-300 ease-out"
                 )}
                 draggable={false}
                 height={job.result.height}
@@ -311,55 +362,7 @@ export const OptimizerPreview = ({
             </span>
 
             {/* Zoom Control Panel */}
-            <div
-              className="absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1 rounded-full border border-gray-alpha-300 bg-background-100/90 px-2 py-1 shadow-sm backdrop-blur-md"
-              onPointerCancel={(e) => e.stopPropagation()}
-              onPointerDown={(e) => e.stopPropagation()}
-              onPointerMove={(e) => e.stopPropagation()}
-              onPointerUp={(e) => e.stopPropagation()}
-            >
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                className="rounded-full"
-                disabled={zoom <= 1}
-                onClick={() => {
-                  const next = Math.max(1, zoom / 1.5);
-                  setZoom(next);
-                  if (next === 1) {
-                    setPan({ x: 0, y: 0 });
-                  }
-                }}
-              >
-                <ZoomOut className="size-3 text-gray-800" />
-              </Button>
-              <span className="min-w-[3.5rem] text-center text-[11px] font-mono font-medium text-gray-1000">
-                {Math.round(zoom * 100)}%
-              </span>
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                className="rounded-full"
-                disabled={zoom >= 8}
-                onClick={() => setZoom(Math.min(8, zoom * 1.5))}
-              >
-                <ZoomIn className="size-3 text-gray-800" />
-              </Button>
-              {zoom > 1 && (
-                <Button
-                  className="ml-1 text-[11px] px-2 h-8 flex items-center gap-1 animate-in fade-in zoom-in-95 slide-in-from-left-2 duration-150 ease-out cursor-pointer rounded-full"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    setZoom(1);
-                    setPan({ x: 0, y: 0 });
-                  }}
-                >
-                  <RotateCcw className="size-3 text-gray-800" />
-                  Reset
-                </Button>
-              )}
-            </div>
+            <ZoomControls zoom={zoom} setZoom={setZoom} setPan={setPan} />
           </>
         ) : null}
 
