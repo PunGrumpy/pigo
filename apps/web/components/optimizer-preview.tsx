@@ -89,6 +89,144 @@ const ZoomControls = ({ zoom, setTransform }: ZoomControlsProps) => (
   </div>
 );
 
+interface ComparisonViewportProps {
+  compareRef: React.RefObject<HTMLDivElement | null>;
+  job: ImageJob;
+  transform: { zoom: number; pan: { x: number; y: number } };
+  setTransform: React.Dispatch<
+    React.SetStateAction<{ zoom: number; pan: { x: number; y: number } }>
+  >;
+  isPanning: boolean;
+  isDragging: boolean;
+  onComparePointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
+  onComparePointerMove: (event: React.PointerEvent<HTMLDivElement>) => void;
+  endCompareDrag: (event: React.PointerEvent<HTMLDivElement>) => void;
+}
+
+const ComparisonViewport = ({
+  compareRef,
+  job,
+  transform,
+  setTransform,
+  isPanning,
+  isDragging,
+  onComparePointerDown,
+  onComparePointerMove,
+  endCompareDrag,
+}: ComparisonViewportProps) => (
+  <div
+    ref={compareRef}
+    className={cn(
+      "relative flex min-h-[50vh] touch-none items-center justify-center overflow-hidden rounded-[6px] bg-gray-100 select-none lg:min-h-0 lg:flex-1",
+      job.result && transform.zoom > 1 && isPanning && "cursor-grabbing",
+      job.result && transform.zoom > 1 && !isPanning && "cursor-grab",
+      job.result && transform.zoom <= 1 && "cursor-ew-resize"
+    )}
+    onPointerCancel={endCompareDrag}
+    onPointerDown={onComparePointerDown}
+    onPointerMove={onComparePointerMove}
+    onPointerUp={endCompareDrag}
+  >
+    <Image
+      alt={`Original ${job.name}`}
+      className={cn(
+        "max-h-full max-w-full object-contain",
+        !isPanning &&
+          !isDragging &&
+          "transition-transform duration-300 ease-out"
+      )}
+      draggable={false}
+      height={job.height}
+      src={job.originalUrl}
+      style={{
+        transform: `translate(${transform.pan.x}px, ${transform.pan.y}px) scale(${transform.zoom})`,
+        transformOrigin: "center",
+      }}
+      unoptimized
+      width={job.width}
+    />
+    {job.result ? (
+      <>
+        <div
+          className="pointer-events-none absolute inset-0 flex items-center justify-center"
+          style={{ clipPath: `inset(0 ${100 - job.slider}% 0 0)` }}
+        >
+          <Image
+            alt={`Optimized ${job.name}`}
+            className={cn(
+              "max-h-full max-w-full object-contain",
+              !isPanning &&
+                !isDragging &&
+                "transition-transform duration-300 ease-out"
+            )}
+            draggable={false}
+            height={job.result.height}
+            src={job.result.url}
+            style={{
+              transform: `translate(${transform.pan.x}px, ${transform.pan.y}px) scale(${transform.zoom})`,
+              transformOrigin: "center",
+            }}
+            unoptimized
+            width={job.result.width}
+          />
+        </div>
+
+        <div
+          aria-hidden="true"
+          className={cn(
+            "pointer-events-none absolute inset-y-0 z-10 w-px -translate-x-1/2 bg-background-100 ring-1",
+            isDragging
+              ? "ring-blue-600 shadow-[0_0_8px_rgba(0,112,243,0.3)]"
+              : "ring-gray-alpha-400"
+          )}
+          style={{ left: `${job.slider}%` }}
+        />
+
+        <div
+          aria-hidden="true"
+          className={cn(
+            "pointer-events-none absolute top-1/2 z-20 flex size-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border bg-background-100 shadow-sm transition-[transform,border-color,box-shadow] duration-150 ease-out",
+            isDragging
+              ? "scale-110 border-blue-600 text-blue-600 shadow-[0_0_12px_rgba(0,112,243,0.2)]"
+              : "border-gray-alpha-400 text-gray-1000 hover:scale-105 hover:border-gray-alpha-500"
+          )}
+          style={{ left: `${job.slider}%` }}
+        >
+          <ChevronsLeftRight className="size-4" strokeWidth={2} />
+        </div>
+
+        <span className="pointer-events-none absolute top-3 left-3 z-20 hidden rounded-[6px] border border-gray-alpha-400 bg-background-100 px-2 py-1 text-label-12 text-gray-1000 shadow-xs sm:inline">
+          Original
+        </span>
+        <span className="pointer-events-none absolute top-3 right-3 z-20 hidden rounded-[6px] border border-gray-alpha-400 bg-background-100 px-2 py-1 text-label-12 text-gray-1000 shadow-xs sm:inline">
+          Optimized
+        </span>
+
+        {/* Zoom Control Panel */}
+        <ZoomControls zoom={transform.zoom} setTransform={setTransform} />
+      </>
+    ) : null}
+
+    {isJobPending(job) ? (
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gray-alpha-100 z-20">
+        <Spinner
+          aria-label="Processing"
+          className="size-[22px] text-gray-900"
+        />
+        <span className="text-label-14 text-gray-900">Processing…</span>
+      </div>
+    ) : null}
+
+    {job.status === "error" ? (
+      <div className="absolute inset-0 flex items-center justify-center bg-red-100/90 px-4">
+        <span className="text-center text-copy-14 text-red-800">
+          {job.error ?? "Compression failed"}
+        </span>
+      </div>
+    ) : null}
+  </div>
+);
+
 export const OptimizerPreview = ({
   job,
   onDownload,
@@ -247,6 +385,7 @@ export const OptimizerPreview = ({
     setIsPanning(false);
   };
 
+  // Cursor logic based on zoom and drag state
   return (
     <div className="flex flex-col gap-4 lg:min-h-0 lg:flex-1">
       <div className="flex shrink-0 items-start justify-between gap-4">
@@ -281,117 +420,17 @@ export const OptimizerPreview = ({
         </div>
       </div>
 
-      <div
-        ref={compareRef}
-        className={cn(
-          "relative flex min-h-[50vh] touch-none items-center justify-center overflow-hidden rounded-[6px] bg-gray-100 select-none lg:min-h-0 lg:flex-1",
-          job.result && transform.zoom > 1 && isPanning && "cursor-grabbing",
-          job.result && transform.zoom > 1 && !isPanning && "cursor-grab",
-          job.result && transform.zoom <= 1 && "cursor-ew-resize"
-        )}
-        onPointerCancel={endCompareDrag}
-        onPointerDown={onComparePointerDown}
-        onPointerMove={onComparePointerMove}
-        onPointerUp={endCompareDrag}
-      >
-        <Image
-          alt={`Original ${job.name}`}
-          className={cn(
-            "max-h-full max-w-full object-contain",
-            !isPanning &&
-              !isDragging &&
-              "transition-transform duration-300 ease-out"
-          )}
-          draggable={false}
-          height={job.height}
-          src={job.originalUrl}
-          style={{
-            transform: `translate(${transform.pan.x}px, ${transform.pan.y}px) scale(${transform.zoom})`,
-            transformOrigin: "center",
-          }}
-          unoptimized
-          width={job.width}
-        />
-        {job.result ? (
-          <>
-            <div
-              className="pointer-events-none absolute inset-0 flex items-center justify-center"
-              style={{ clipPath: `inset(0 ${100 - job.slider}% 0 0)` }}
-            >
-              <Image
-                alt={`Optimized ${job.name}`}
-                className={cn(
-                  "max-h-full max-w-full object-contain",
-                  !isPanning &&
-                    !isDragging &&
-                    "transition-transform duration-300 ease-out"
-                )}
-                draggable={false}
-                height={job.result.height}
-                src={job.result.url}
-                style={{
-                  transform: `translate(${transform.pan.x}px, ${transform.pan.y}px) scale(${transform.zoom})`,
-                  transformOrigin: "center",
-                }}
-                unoptimized
-                width={job.result.width}
-              />
-            </div>
-
-            <div
-              aria-hidden="true"
-              className={cn(
-                "pointer-events-none absolute inset-y-0 z-10 w-px -translate-x-1/2 bg-background-100 ring-1",
-                isDragging
-                  ? "ring-blue-600 shadow-[0_0_8px_rgba(0,112,243,0.3)]"
-                  : "ring-gray-alpha-400"
-              )}
-              style={{ left: `${job.slider}%` }}
-            />
-
-            <div
-              aria-hidden="true"
-              className={cn(
-                "pointer-events-none absolute top-1/2 z-20 flex size-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border bg-background-100 shadow-sm transition-[transform,border-color,box-shadow] duration-150 ease-out",
-                isDragging
-                  ? "scale-110 border-blue-600 text-blue-600 shadow-[0_0_12px_rgba(0,112,243,0.2)]"
-                  : "border-gray-alpha-400 text-gray-1000 hover:scale-105 hover:border-gray-alpha-500"
-              )}
-              style={{ left: `${job.slider}%` }}
-            >
-              <ChevronsLeftRight className="size-4" strokeWidth={2} />
-            </div>
-
-            <span className="pointer-events-none absolute top-3 left-3 z-20 hidden rounded-[6px] border border-gray-alpha-400 bg-background-100 px-2 py-1 text-label-12 text-gray-1000 shadow-xs sm:inline">
-              Original
-            </span>
-            <span className="pointer-events-none absolute top-3 right-3 z-20 hidden rounded-[6px] border border-gray-alpha-400 bg-background-100 px-2 py-1 text-label-12 text-gray-1000 shadow-xs sm:inline">
-              Optimized
-            </span>
-
-            {/* Zoom Control Panel */}
-            <ZoomControls zoom={transform.zoom} setTransform={setTransform} />
-          </>
-        ) : null}
-
-        {isJobPending(job) ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gray-alpha-100 z-20">
-            <Spinner
-              aria-label="Processing"
-              className="size-[22px] text-gray-900"
-            />
-            <span className="text-label-14 text-gray-900">Processing…</span>
-          </div>
-        ) : null}
-
-        {job.status === "error" ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-red-100/90 px-4">
-            <span className="text-center text-copy-14 text-red-800">
-              {job.error ?? "Compression failed"}
-            </span>
-          </div>
-        ) : null}
-      </div>
+      <ComparisonViewport
+        compareRef={compareRef}
+        endCompareDrag={endCompareDrag}
+        isDragging={isDragging}
+        isPanning={isPanning}
+        job={job}
+        onComparePointerDown={onComparePointerDown}
+        onComparePointerMove={onComparePointerMove}
+        setTransform={setTransform}
+        transform={transform}
+      />
 
       {job.result ? (
         <div className="flex shrink-0 flex-col gap-3 rounded-[6px] border border-gray-alpha-400 bg-background-100 p-4 shadow-xs">
