@@ -26,11 +26,12 @@ interface OptimizerPreviewProps {
 
 interface ZoomControlsProps {
   zoom: number;
-  setZoom: React.Dispatch<React.SetStateAction<number>>;
-  setPan: React.Dispatch<React.SetStateAction<{ x: number; y: number }>>;
+  setTransform: React.Dispatch<
+    React.SetStateAction<{ zoom: number; pan: { x: number; y: number } }>
+  >;
 }
 
-const ZoomControls = ({ zoom, setZoom, setPan }: ZoomControlsProps) => (
+const ZoomControls = ({ zoom, setTransform }: ZoomControlsProps) => (
   <div
     className="absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1 rounded-full border border-gray-alpha-300 bg-background-100/90 px-2 py-1 shadow-sm backdrop-blur-md"
     onPointerCancel={(e) => e.stopPropagation()}
@@ -44,12 +45,12 @@ const ZoomControls = ({ zoom, setZoom, setPan }: ZoomControlsProps) => (
       className="rounded-full"
       disabled={zoom <= 1}
       onClick={() => {
-        setZoom((prev) => {
-          const next = Math.max(1, prev / 1.5);
-          if (next === 1) {
-            setPan({ x: 0, y: 0 });
-          }
-          return next;
+        setTransform((prev) => {
+          const next = Math.max(1, prev.zoom / 1.5);
+          return {
+            pan: next === 1 ? { x: 0, y: 0 } : prev.pan,
+            zoom: next,
+          };
         });
       }}
     >
@@ -63,7 +64,12 @@ const ZoomControls = ({ zoom, setZoom, setPan }: ZoomControlsProps) => (
       variant="ghost"
       className="rounded-full"
       disabled={zoom >= 8}
-      onClick={() => setZoom((prev) => Math.min(8, prev * 1.5))}
+      onClick={() => {
+        setTransform((prev) => ({
+          ...prev,
+          zoom: Math.min(8, prev.zoom * 1.5),
+        }));
+      }}
     >
       <ZoomIn className="size-3 text-gray-800" />
     </Button>
@@ -73,8 +79,7 @@ const ZoomControls = ({ zoom, setZoom, setPan }: ZoomControlsProps) => (
         size="sm"
         variant="ghost"
         onClick={() => {
-          setZoom(1);
-          setPan({ x: 0, y: 0 });
+          setTransform({ pan: { x: 0, y: 0 }, zoom: 1 });
         }}
       >
         <RotateCcw className="size-3 text-gray-800" />
@@ -91,8 +96,7 @@ export const OptimizerPreview = ({
   onSliderChange,
 }: OptimizerPreviewProps) => {
   const compareRef = useRef<HTMLDivElement>(null);
-  const [zoom, setZoom] = useState(1);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [transform, setTransform] = useState({ pan: { x: 0, y: 0 }, zoom: 1 });
   const startPanRef = useRef({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -146,21 +150,22 @@ export const OptimizerPreview = ({
       e.preventDefault();
 
       const zoomFactor = 1.15;
-      setZoom((currentZoom) => {
+      setTransform((prev) => {
         const nextZoom =
           e.deltaY < 0
-            ? Math.min(8, currentZoom * zoomFactor)
-            : Math.max(1, currentZoom / zoomFactor);
+            ? Math.min(8, prev.zoom * zoomFactor)
+            : Math.max(1, prev.zoom / zoomFactor);
 
-        if (nextZoom === 1) {
-          setPan({ x: 0, y: 0 });
-        } else {
-          setPan((prev) => ({
-            x: prev.x * (nextZoom / currentZoom),
-            y: prev.y * (nextZoom / currentZoom),
-          }));
-        }
-        return nextZoom;
+        return {
+          pan:
+            nextZoom === 1
+              ? { x: 0, y: 0 }
+              : {
+                  x: prev.pan.x * (nextZoom / prev.zoom),
+                  y: prev.pan.y * (nextZoom / prev.zoom),
+                },
+          zoom: nextZoom,
+        };
       });
     };
 
@@ -202,11 +207,11 @@ export const OptimizerPreview = ({
 
     event.currentTarget.setPointerCapture(event.pointerId);
 
-    if (zoom > 1 && !isNearDivider) {
+    if (transform.zoom > 1 && !isNearDivider) {
       setIsPanning(true);
       startPanRef.current = {
-        x: event.clientX - pan.x,
-        y: event.clientY - pan.y,
+        x: event.clientX - transform.pan.x,
+        y: event.clientY - transform.pan.y,
       };
     } else {
       setIsDragging(true);
@@ -221,13 +226,16 @@ export const OptimizerPreview = ({
       const nextX = event.clientX - startPanRef.current.x;
       const nextY = event.clientY - startPanRef.current.y;
 
-      const maxPanX = (zoom - 1) * 400;
-      const maxPanY = (zoom - 1) * 400;
+      const maxPanX = (transform.zoom - 1) * 400;
+      const maxPanY = (transform.zoom - 1) * 400;
 
-      setPan({
-        x: Math.min(maxPanX, Math.max(-maxPanX, nextX)),
-        y: Math.min(maxPanY, Math.max(-maxPanY, nextY)),
-      });
+      setTransform((prev) => ({
+        ...prev,
+        pan: {
+          x: Math.min(maxPanX, Math.max(-maxPanX, nextX)),
+          y: Math.min(maxPanY, Math.max(-maxPanY, nextY)),
+        },
+      }));
     }
   };
 
@@ -277,9 +285,9 @@ export const OptimizerPreview = ({
         ref={compareRef}
         className={cn(
           "relative flex min-h-[50vh] touch-none items-center justify-center overflow-hidden rounded-[6px] bg-gray-100 select-none lg:min-h-0 lg:flex-1",
-          job.result && zoom > 1 && isPanning && "cursor-grabbing",
-          job.result && zoom > 1 && !isPanning && "cursor-grab",
-          job.result && zoom <= 1 && "cursor-ew-resize"
+          job.result && transform.zoom > 1 && isPanning && "cursor-grabbing",
+          job.result && transform.zoom > 1 && !isPanning && "cursor-grab",
+          job.result && transform.zoom <= 1 && "cursor-ew-resize"
         )}
         onPointerCancel={endCompareDrag}
         onPointerDown={onComparePointerDown}
@@ -298,7 +306,7 @@ export const OptimizerPreview = ({
           height={job.height}
           src={job.originalUrl}
           style={{
-            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            transform: `translate(${transform.pan.x}px, ${transform.pan.y}px) scale(${transform.zoom})`,
             transformOrigin: "center",
           }}
           unoptimized
@@ -322,7 +330,7 @@ export const OptimizerPreview = ({
                 height={job.result.height}
                 src={job.result.url}
                 style={{
-                  transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                  transform: `translate(${transform.pan.x}px, ${transform.pan.y}px) scale(${transform.zoom})`,
                   transformOrigin: "center",
                 }}
                 unoptimized
@@ -362,7 +370,7 @@ export const OptimizerPreview = ({
             </span>
 
             {/* Zoom Control Panel */}
-            <ZoomControls zoom={zoom} setZoom={setZoom} setPan={setPan} />
+            <ZoomControls zoom={transform.zoom} setTransform={setTransform} />
           </>
         ) : null}
 
