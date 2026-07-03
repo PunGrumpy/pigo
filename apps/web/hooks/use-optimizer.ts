@@ -44,6 +44,8 @@ export const useOptimizer = () => {
   const [filterTab, setFilterTab] = useState<"all" | "optimized" | "errors">(
     "all"
   );
+  const [zipGenerating, setZipGenerating] = useState(false);
+  const [zipProgress, setZipProgress] = useState(0);
 
   const filteredJobs = useMemo(
     () =>
@@ -95,6 +97,17 @@ export const useOptimizer = () => {
   const totalCompressed = completedJobs.reduce(
     (sum, job) => sum + (job.result?.size ?? 0),
     0
+  );
+  const processedCount = useMemo(
+    () =>
+      jobs.filter((job) => job.status === "done" || job.status === "error")
+        .length,
+    [jobs]
+  );
+  const processPercent = useMemo(
+    () =>
+      jobs.length > 0 ? Math.round((processedCount / jobs.length) * 100) : 0,
+    [jobs.length, processedCount]
   );
 
   const updateJob = useCallback(
@@ -293,12 +306,25 @@ export const useOptimizer = () => {
     generationRef.current.clear();
   }, [invalidateJob]);
 
+  const handleDownloadAll = useCallback(async () => {
+    setZipGenerating(true);
+    setZipProgress(0);
+    try {
+      await downloadAll(jobsRef.current, (percent) => {
+        setZipProgress(percent);
+      });
+    } finally {
+      setZipGenerating(false);
+      setZipProgress(0);
+    }
+  }, []);
+
   return {
     addFiles,
     applyOptions,
     clearAll,
     completedJobs,
-    downloadAll: () => void downloadAll(jobsRef.current),
+    downloadAll: handleDownloadAll,
     downloadJob,
     filterTab,
     filteredJobs,
@@ -308,6 +334,8 @@ export const useOptimizer = () => {
     options,
     optionsDirty,
     patchOptions,
+    processPercent,
+    processedCount,
     removeJob,
     searchQuery,
     selectedId,
@@ -318,5 +346,7 @@ export const useOptimizer = () => {
     totalCompressed,
     totalOriginal,
     updateJob,
+    zipGenerating,
+    zipProgress,
   };
 };

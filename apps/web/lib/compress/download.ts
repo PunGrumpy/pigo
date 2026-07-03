@@ -20,7 +20,10 @@ export const downloadJob = (job: ImageJob) => {
   );
 };
 
-export const downloadAll = async (jobs: ImageJob[]) => {
+export const downloadAll = async (
+  jobs: ImageJob[],
+  onProgress?: (percent: number) => void
+) => {
   const ready = jobs.filter((job) => job.result);
   if (ready.length === 0) {
     return;
@@ -39,6 +42,13 @@ export const downloadAll = async (jobs: ImageJob[]) => {
     }
     zip.file(buildDownloadName(job.name, result.outputFormat), result.blob);
   }
-  const blob = await zip.generateAsync({ type: "blob" });
-  downloadBlob(blob, "pigo-images.zip");
+
+  const blob = await zip.generateAsync({ type: "blob" }, (metadata) => {
+    if (onProgress) {
+      onProgress(Math.round(metadata.percent));
+    }
+  });
+
+  const [dateStr] = new Date().toISOString().split("T");
+  downloadBlob(blob, `pigo-images-${dateStr}.zip`);
 };
