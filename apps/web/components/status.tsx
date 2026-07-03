@@ -79,7 +79,7 @@ export const Status = () => {
       rel="noopener noreferrer"
       target="_blank"
     >
-      <div className="flex-[0_1_auto] min-w-0 w-auto h-[34px] max-[960px]:h-8 flex items-center px-3 border border-gray-alpha-400 gap-1.5 whitespace-nowrap overflow-hidden text-ellipsis transition-all duration-200 ease-[ease] *:leading-(--geist-form-line-height) border-none! rounded-md bg-transparent! hover:bg-gray-100! dark:hover:bg-gray-900/50!">
+      <div className="flex-[0_1_auto] min-w-0 w-auto h-[34px] max-[960px]:h-8 flex items-center px-3 border border-gray-alpha-400 gap-1.5 whitespace-nowrap overflow-hidden text-ellipsis transition-all duration-200 ease-[ease] *:leading-(--geist-form-line-height) border-none! rounded-md bg-transparent! hover:bg-gray-300!">
         <span
           className={cn(
             "status-dot shrink-0 inline-block size-2.5 rounded-full transition-all duration-300",
