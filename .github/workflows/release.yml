@@ -33,6 +33,9 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: "1.26.4"
+          cache-dependency-path: |
+            apps/api/go.sum
+            packages/core/go.sum
       - name: Install Dependencies
         run: bun install
       # - name: Run tests
