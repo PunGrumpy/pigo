@@ -1,7 +1,7 @@
 package core
 
 const (
-	MaxFileSize  = 10 << 20 // 10 MB
+	MaxFileSize  = 20 << 20 // 20 MB
 	MaxPixels    = 100_000_000
 	MaxDimension = 16_384
 )
