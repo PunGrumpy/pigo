@@ -11,6 +11,8 @@ import { useOptimizerContext } from "@/components/providers/optimizer-provider";
 import { Status } from "@/components/status";
 import { cn } from "@/lib/utils";
 
+import { Social } from "./social";
+
 const QueueContent = () => {
   const { jobs, filteredJobs, selectedId, setSelectedId, openFilePicker } =
     useOptimizerContext();
@@ -110,8 +112,9 @@ export const OptimizerQueuePanel = () => {
         </div>
       )}
 
-      <div className="flex h-10 shrink-0 items-center px-3 border-t border-gray-alpha-400 bg-background-200">
+      <div className="flex h-10 shrink-0 items-center px-3 border-t border-gray-alpha-400 bg-background-200 justify-between">
         <Status />
+        <Social />
       </div>
 
       <div className="flex shrink-0 flex-col gap-2 border-t border-gray-alpha-400 p-3 bg-background-200">
