@@ -1,6 +1,6 @@
 import type { CompressionOptions, OutputChoice } from "./types";
 
-export const MAX_FILES = 10;
+export const MAX_FILES = 50;
 export const MAX_FILE_SIZE = 20 * 1024 * 1024;
 export const MAX_PIXELS = 100_000_000;
 export const ACCEPTED_MIME_TYPES = [
