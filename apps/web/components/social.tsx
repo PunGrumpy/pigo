@@ -31,7 +31,7 @@ export const Social = () => (
         target="_blank"
         rel="noopener noreferrer"
         className={cn(
-          "bg-transparent border-none rounded-md size-[34px] max-[960px]:size-8 p-0 flex items-center justify-center cursor-pointer text-gray-1000",
+          "bg-transparent border-none rounded-md size-[34px] max-[960px]:size-8 p-0 flex items-center justify-center text-gray-1000",
           "[&_svg_path]:transition-all transition-[background,border-color] duration-200 hover:bg-gray-300 hover:border-gray-300 hover:[&_svg_path]:fill-gray-1000",
           "focus-visible:outline-hidden focus-visible:shadow-(--ds-focus-ring)"
         )}
