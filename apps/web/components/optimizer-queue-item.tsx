@@ -62,7 +62,7 @@ export const OptimizerQueueItem = ({
             <small className="shrink-0 text-[11px] text-gray-800">
               {formatBytes(job.originalSize)}
             </small>
-            <span className="text-[9px] font-mono font-semibold uppercase px-1 py-0.5 rounded bg-gray-200 text-gray-800 truncate">
+            <span className="text-[9px] font-mono font-semibold uppercase px-1 py-0.5 rounded bg-gray-300 text-gray-700 truncate">
               {isConverted
                 ? `${job.inputFormat} → ${targetFormat}`
                 : job.inputFormat}
