@@ -16,14 +16,12 @@ export const OptimizerProvider = ({ children }: PropsWithChildren) => {
   const optimizer = useOptimizer();
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  const openFilePicker = () => {
-    inputRef.current?.click();
-  };
-
   const contextValue = useMemo(
     () => ({
       ...optimizer,
-      openFilePicker,
+      openFilePicker: () => {
+        inputRef.current?.click();
+      },
     }),
     [optimizer]
   );
