@@ -92,24 +92,24 @@ Optimizes and resizes a JPEG/PNG image.
 
 #### Request Parameters
 
-| Parameter        | Type    | Required | Default  | Description                                                                        |
-| :--------------- | :------ | :------- | :------- | :--------------------------------------------------------------------------------- |
-| `file`           | File    | Yes      | -        | The image file to optimize (Max size: `10MB`). Supported formats: JPEG, PNG, WebP. |
-| `quality`        | Integer | No       | `82`     | Target image quality from `1` to `100`.                                            |
-| `outputFormat`   | String  | No       | `"same"` | Target image format: `"same"`, `"jpeg"`, or `"png"`.                               |
-| `resizeWidth`    | Integer | No       | -        | Target width in pixels (`1`-`16384`).                                              |
-| `resizeHeight`   | Integer | No       | -        | Target height in pixels (`1`-`16384`).                                             |
-| `maintainAspect` | Boolean | No       | `true`   | Maintain aspect ratio when resizing (`"true"` or `"false"`).                       |
+| Parameter | Type | Required | Default | Description |
+| :-- | :-- | :-- | :-- | :-- |
+| `file` | File | Yes | - | The image file to optimize (Max size: `10MB`). Supported formats: JPEG, PNG, WebP. |
+| `quality` | Integer | No | `82` | Target image quality from `1` to `100`. |
+| `outputFormat` | String | No | `"same"` | Target image format: `"same"`, `"jpeg"`, or `"png"`. |
+| `resizeWidth` | Integer | No | - | Target width in pixels (`1`-`16384`). |
+| `resizeHeight` | Integer | No | - | Target height in pixels (`1`-`16384`). |
+| `maintainAspect` | Boolean | No | `true` | Maintain aspect ratio when resizing (`"true"` or `"false"`). |
 
 #### Response Headers
 
-| Header              | Type    | Description                                   |
-| :------------------ | :------ | :-------------------------------------------- |
-| `X-Original-Size`   | Integer | Size of the original image in bytes.          |
-| `X-Compressed-Size` | Integer | Size of the optimized image in bytes.         |
-| `X-Elapsed-Ms`      | Integer | Processing duration in milliseconds.          |
-| `X-Width`           | Integer | Resized width of the output image in pixels.  |
-| `X-Height`          | Integer | Resized height of the output image in pixels. |
+| Header | Type | Description |
+| :-- | :-- | :-- |
+| `X-Original-Size` | Integer | Size of the original image in bytes. |
+| `X-Compressed-Size` | Integer | Size of the optimized image in bytes. |
+| `X-Elapsed-Ms` | Integer | Processing duration in milliseconds. |
+| `X-Width` | Integer | Resized width of the output image in pixels. |
+| `X-Height` | Integer | Resized height of the output image in pixels. |
 
 ### GET `/health`
 
