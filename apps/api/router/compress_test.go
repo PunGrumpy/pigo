@@ -2,6 +2,7 @@ package router
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"image"
 	"image/png"
@@ -189,6 +190,29 @@ func TestHandleCompressNonImagePayload(t *testing.T) {
 
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("got status %d, want %d; body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+}
+
+func TestHandleCompressCanceledContextStopsBeforeWrite(t *testing.T) {
+	fixture := pngFixture(t, 10, 10)
+	req := multipartRequest(t, fixture, "input.png", nil)
+
+	ctx, cancel := context.WithCancel(req.Context())
+	cancel() // simulate client gone / chi Timeout deadline already passed
+	req = req.WithContext(ctx)
+
+	rec := httptest.NewRecorder()
+
+	HandleCompress(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("got status %d, want httptest.NewRecorder default %d (handler must not call WriteHeader)", rec.Code, http.StatusOK)
+	}
+	if rec.Body.Len() != 0 {
+		t.Fatalf("expected no body written, got %d bytes", rec.Body.Len())
+	}
+	if got := rec.Header().Get("X-Width"); got != "" {
+		t.Fatalf("expected no X-Width header, got %q", got)
 	}
 }
 
