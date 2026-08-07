@@ -23,8 +23,8 @@ jobs:
             command: bun run fix
           - name: Typecheck
             command: bun run typecheck
-          # - name: Test
-          #   command: bun run test
+          - name: Test
+            command: bun run test
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v7
