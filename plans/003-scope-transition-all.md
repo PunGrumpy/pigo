@@ -1,6 +1,6 @@
 # 003 — Scope `transition-all` to the properties that actually change
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: a322df8
 - **Severity**: MEDIUM
 - **Category**: Performance

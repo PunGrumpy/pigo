@@ -38,7 +38,7 @@ export const Checkbox = ({
           <span
             aria-hidden="true"
             className={cn(
-              "relative inline-flex size-4 rotate-[0.000001deg] items-center justify-center rounded-sm border border-gray-700 bg-background-100 transition-all duration-200",
+              "relative inline-flex size-4 rotate-[0.000001deg] items-center justify-center rounded-sm border border-gray-700 bg-background-100 transition-[background-color,border-color,box-shadow] duration-150",
               "[--checkbox-color:var(--ds-gray-700)]",
               "peer-checked:bg-gray-1000 peer-checked:border-gray-1000",
               "peer-disabled:peer-checked:border-gray-600 peer-disabled:peer-checked:bg-gray-600",
