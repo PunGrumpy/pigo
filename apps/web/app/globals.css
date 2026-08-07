@@ -497,13 +497,24 @@
     @apply focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 focus-visible:ring-offset-2;
   }
   @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto !important;
+    }
+    /*
+     * Reduced motion, not zero motion: drop movement (transform, position),
+     * keep the color/opacity/shadow feedback that aids comprehension.
+     */
     *,
     *::before,
     *::after {
+      transition-property:
+        color, background-color, border-color, fill, stroke, opacity, box-shadow !important;
+    }
+    /* Entrance/exit keyframes (tw-animate-css) move elements — skip them. */
+    .animate-in,
+    .animate-out {
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
-      scroll-behavior: auto !important;
-      transition-duration: 0.01ms !important;
     }
   }
 }

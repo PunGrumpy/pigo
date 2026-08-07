@@ -8,7 +8,7 @@ Produced by an animation/motion audit of `apps/web` at commit `a322df8` (2026-08
 | 002 | [Remove selection layout jump](002-remove-selection-layout-jump.md) | HIGH | DONE |
 | 003 | [Scope `transition-all`](003-scope-transition-all.md) | MEDIUM | DONE |
 | 004 | [Progress bar via `scaleX`](004-progress-bar-scalex.md) | MEDIUM | DONE |
-| 005 | [Reduced motion keeps feedback](005-reduced-motion-keep-feedback.md) | MEDIUM | TODO |
+| 005 | [Reduced motion keeps feedback](005-reduced-motion-keep-feedback.md) | MEDIUM | DONE |
 
 ## Recommended execution order
 

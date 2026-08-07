@@ -1,6 +1,6 @@
 # 005 — Make reduced-motion drop movement without killing feedback
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: a322df8
 - **Severity**: MEDIUM
 - **Category**: Accessibility
