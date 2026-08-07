@@ -101,8 +101,10 @@ useEffect(() => {
      // Commit the final value once; the sweep itself stays local.
      onSliderChangeRef.current(jobRef.current, 50);
 
+     let rafId: number;
+
      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-       rafIdRef.current = requestAnimationFrame(() => {
+       rafId = requestAnimationFrame(() => {
          rafIdRef.current = null;
          setRevealSlider(null);
        });
@@ -120,21 +122,22 @@ useEffect(() => {
 
          if (progress < 1) {
            setRevealSlider(targetValue * ease);
-           rafIdRef.current = requestAnimationFrame(animate);
+           rafId = requestAnimationFrame(animate);
+           rafIdRef.current = rafId;
          } else {
            setRevealSlider(null);
            rafIdRef.current = null;
          }
        };
 
-       rafIdRef.current = requestAnimationFrame(animate);
+       rafId = requestAnimationFrame(animate);
      }
 
+     rafIdRef.current = rafId;
+
      return () => {
-       if (rafIdRef.current !== null) {
-         cancelAnimationFrame(rafIdRef.current);
-         rafIdRef.current = null;
-       }
+       cancelAnimationFrame(rafId);
+       rafIdRef.current = null;
      };
    }, [resultUrl]);
    ```
