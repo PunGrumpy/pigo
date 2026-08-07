@@ -94,12 +94,18 @@ Optimizes and resizes a JPEG/PNG image.
 
 | Parameter | Type | Required | Default | Description |
 | :-- | :-- | :-- | :-- | :-- |
-| `file` | File | Yes | - | The image file to optimize (Max size: `10MB`). Supported formats: JPEG, PNG, WebP. |
+| `file` | File | Yes | - | The image file to optimize (Max size: `20MB`). Supported formats: JPEG, PNG, WebP. |
 | `quality` | Integer | No | `82` | Target image quality from `1` to `100`. |
 | `outputFormat` | String | No | `"same"` | Target image format: `"same"`, `"jpeg"`, or `"png"`. |
 | `resizeWidth` | Integer | No | - | Target width in pixels (`1`-`16384`). |
 | `resizeHeight` | Integer | No | - | Target height in pixels (`1`-`16384`). |
 | `maintainAspect` | Boolean | No | `true` | Maintain aspect ratio when resizing (`"true"` or `"false"`). |
+
+#### Notes
+
+- WebP output is produced in the browser, not by the API: a WebP upload with `outputFormat` `"same"` (the default) or `"webp"` returns `400`; convert WebP via the API only to `"jpeg"` or `"png"`.
+- GIF input is not supported and returns `400`.
+- Images are limited to 100 megapixels and 16384 pixels per side.
 
 #### Response Headers
 
@@ -108,6 +114,7 @@ Optimizes and resizes a JPEG/PNG image.
 | `X-Original-Size` | Integer | Size of the original image in bytes. |
 | `X-Compressed-Size` | Integer | Size of the optimized image in bytes. |
 | `X-Elapsed-Ms` | Integer | Processing duration in milliseconds. |
+| `X-Output-Format` | String | Format of the output image ("jpeg" or "png"). |
 | `X-Width` | Integer | Resized width of the output image in pixels. |
 | `X-Height` | Integer | Resized height of the output image in pixels. |
 

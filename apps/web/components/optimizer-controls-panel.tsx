@@ -8,6 +8,7 @@ import { Download, FileArchive, RefreshCw, Info } from "lucide-react";
 import { OptimizerMetadataGrid } from "@/components/optimizer-metadata-grid";
 import { useOptimizerContext } from "@/components/providers/optimizer-provider";
 import { Checkbox } from "@/components/ui/checkbox";
+import { MAX_DIMENSION } from "@/lib/image/constants";
 import { formatBytes, formatSavings } from "@/lib/image/format";
 import type { CompressionOptions } from "@/lib/image/types";
 import { cn } from "@/lib/utils";
@@ -184,7 +185,7 @@ export const OptimizerControlsPanel = () => {
                     </span>
                     <Input
                       id="resize-width"
-                      max="16384"
+                      max={MAX_DIMENSION}
                       min="1"
                       type="number"
                       className={cn(
@@ -216,7 +217,7 @@ export const OptimizerControlsPanel = () => {
                         "focus:outline-none focus-visible:shadow-[var(--ds-focus-ring)]",
                         "disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-700 disabled:shadow-[0_0_0_1px_var(--ds-gray-alpha-400)]"
                       )}
-                      max="16384"
+                      max={MAX_DIMENSION}
                       min="1"
                       type="number"
                       value={options.resizeHeight || ""}
