@@ -2,6 +2,7 @@ package router
 
 import (
 	"net/http"
+	"runtime"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -26,5 +27,8 @@ func New() http.Handler {
 
 func registerRoutes(r chi.Router) {
 	r.Get("/health", HandleHealth)
-	r.Post("/compress", HandleCompress)
+
+	maxConcurrent := max(2, runtime.GOMAXPROCS(0))
+	r.With(middleware.ThrottleBacklog(maxConcurrent, maxConcurrent*2, 30*time.Second)).
+		Post("/compress", HandleCompress)
 }
