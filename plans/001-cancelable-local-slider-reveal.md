@@ -77,64 +77,66 @@ useEffect(() => {
    }, []);
    ```
 
-2. Replace the whole `// Micro-animation on load` effect (current lines 243-275) with:
+2. Replace the whole `// Micro-animation on load` effect (current lines 243-275, including the `lastResultUrlRef` declaration, which is no longer needed) with latest-ref mirrors plus a single effect keyed on the result URL. The cleanup cancels the loop on unmount, on job/result switches, and lets analyzers see the rAF loop is cancelled in the same effect:
 
    ```tsx
+   // Latest-ref mirrors so the reveal effect can key off the result URL alone —
+   // depending on `job`/`onSliderChange` would cancel the sweep on every
+   // unrelated context update (their identities change each render).
+   const jobRef = useRef(job);
+   const onSliderChangeRef = useRef(onSliderChange);
+   useEffect(() => {
+     jobRef.current = job;
+     onSliderChangeRef.current = onSliderChange;
+   });
+
+   const resultUrl = job.result?.url ?? null;
+
    // Reveal sweep when a new result arrives. Explanatory motion: 800ms easeOutQuart.
    useEffect(() => {
-     if (!(job.result && lastResultUrlRef.current !== job.result.url)) {
+     if (!resultUrl) {
        return;
-     }
-     lastResultUrlRef.current = job.result.url;
-
-     if (rafIdRef.current !== null) {
-       cancelAnimationFrame(rafIdRef.current);
-       rafIdRef.current = null;
      }
 
      // Commit the final value once; the sweep itself stays local.
-     onSliderChange(job, 50);
+     onSliderChangeRef.current(jobRef.current, 50);
 
      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
        rafIdRef.current = requestAnimationFrame(() => {
          rafIdRef.current = null;
          setRevealSlider(null);
        });
-       return;
+     } else {
+       let start: number | null = null;
+       const duration = 800;
+       const targetValue = 50;
+
+       const animate = (timestamp: number) => {
+         if (!start) {
+           start = timestamp;
+         }
+         const progress = Math.min((timestamp - start) / duration, 1);
+         const ease = 1 - (1 - progress) ** 4;
+
+         if (progress < 1) {
+           setRevealSlider(targetValue * ease);
+           rafIdRef.current = requestAnimationFrame(animate);
+         } else {
+           setRevealSlider(null);
+           rafIdRef.current = null;
+         }
+       };
+
+       rafIdRef.current = requestAnimationFrame(animate);
      }
 
-     let start: number | null = null;
-     const duration = 800;
-     const targetValue = 50;
-
-     const animate = (timestamp: number) => {
-       if (!start) {
-         start = timestamp;
-       }
-       const progress = Math.min((timestamp - start) / duration, 1);
-       const ease = 1 - (1 - progress) ** 4;
-
-       if (progress < 1) {
-         setRevealSlider(targetValue * ease);
-         rafIdRef.current = requestAnimationFrame(animate);
-       } else {
-         setRevealSlider(null);
+     return () => {
+       if (rafIdRef.current !== null) {
+         cancelAnimationFrame(rafIdRef.current);
          rafIdRef.current = null;
        }
      };
-
-     rafIdRef.current = requestAnimationFrame(animate);
-   }, [job, onSliderChange]);
-
-   // Unmount-only cleanup for the reveal loop.
-   useEffect(
-     () => () => {
-       if (rafIdRef.current !== null) {
-         cancelAnimationFrame(rafIdRef.current);
-       }
-     },
-     []
-   );
+   }, [resultUrl]);
    ```
 
 3. Derive the displayed value right after the effects and pass it down. Add to `OptimizerPreview` body:
