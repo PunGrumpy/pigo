@@ -118,9 +118,11 @@ func pngHeader(w, h uint32) []byte {
 }
 
 func TestDecodePixelLimitRejectedBeforeFullDecode(t *testing.T) {
-	// 20000 x 6000 = 120,000,000 px > MaxPixels (100,000,000), declared via
-	// a hand-built PNG header only (no pixel data present at all).
-	header := pngHeader(20000, 6000)
+	// 16000 x 7000 = 112,000,000 px > MaxPixels (100,000,000), both sides
+	// within MaxDimension (16384), so this hits the pixel-count gate rather
+	// than the per-side gate added alongside this test. Declared via a
+	// hand-built PNG header only (no pixel data present at all).
+	header := pngHeader(16000, 7000)
 
 	start := time.Now()
 	_, _, _, err := Decode(bytes.NewReader(header))
@@ -132,8 +134,29 @@ func TestDecodePixelLimitRejectedBeforeFullDecode(t *testing.T) {
 	if !strings.Contains(err.Error(), "100MP pixel limit") {
 		t.Fatalf("got error %q, want it to contain %q", err.Error(), "100MP pixel limit")
 	}
-	// Proves no full pixel decode was attempted: a real 120MP decode would
+	// Proves no full pixel decode was attempted: a real 112MP decode would
 	// take far longer than this budget.
+	if elapsed > 500*time.Millisecond {
+		t.Fatalf("decode took %v, expected a fast rejection based on header alone", elapsed)
+	}
+}
+
+func TestDecodePerSideDimensionLimitRejectedBeforeFullDecode(t *testing.T) {
+	// 20000 x 10: total pixels (200,000) are far under MaxPixels, but the
+	// width alone exceeds MaxDimension (16384), so this must be rejected by
+	// the per-side check, not the pixel-count check.
+	header := pngHeader(20000, 10)
+
+	start := time.Now()
+	_, _, _, err := Decode(bytes.NewReader(header))
+	elapsed := time.Since(start)
+
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "per-side limit") {
+		t.Fatalf("got error %q, want it to contain %q", err.Error(), "per-side limit")
+	}
 	if elapsed > 500*time.Millisecond {
 		t.Fatalf("decode took %v, expected a fast rejection based on header alone", elapsed)
 	}
