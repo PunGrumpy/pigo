@@ -73,19 +73,29 @@ const ZoomControls = ({ zoom, setTransform }: ZoomControlsProps) => (
     >
       <ZoomIn className="size-3 text-gray-800" />
     </Button>
-    {zoom > 1 && (
-      <Button
-        className="ml-1 text-[11px] px-2 h-8 flex items-center gap-1 cursor-pointer rounded-full opacity-100 translate-x-0 scale-100 transition-[opacity,translate,scale] duration-150 ease-out starting:opacity-0 starting:-translate-x-2 starting:scale-95"
-        size="sm"
-        variant="ghost"
-        onClick={() => {
-          setTransform({ pan: { x: 0, y: 0 }, zoom: 1 });
-        }}
-      >
-        <RotateCcw className="size-3 text-gray-800" />
-        Reset
-      </Button>
-    )}
+    <div
+      className={cn(
+        "grid transition-[grid-template-columns] duration-150 ease-out",
+        zoom > 1 ? "grid-cols-[1fr]" : "grid-cols-[0fr]"
+      )}
+    >
+      <div className="min-w-0 overflow-hidden" inert={zoom <= 1}>
+        <Button
+          className={cn(
+            "ml-1 flex h-8 cursor-pointer items-center gap-1 whitespace-nowrap rounded-full px-2 text-[11px] transition-opacity duration-150 ease-out",
+            zoom > 1 ? "opacity-100" : "opacity-0"
+          )}
+          size="sm"
+          variant="ghost"
+          onClick={() => {
+            setTransform({ pan: { x: 0, y: 0 }, zoom: 1 });
+          }}
+        >
+          <RotateCcw className="size-3 text-gray-800" />
+          Reset
+        </Button>
+      </div>
+    </div>
   </div>
 );
 
