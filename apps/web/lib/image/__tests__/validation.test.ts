@@ -12,8 +12,8 @@ describe("validateFile", () => {
   });
 
   it("rejects when queue is full", () => {
-    expect(validateFile(file("a.jpg", "image/jpeg", 100), MAX_FILES)).toMatch(
-      /up to 10 files/u
+    expect(validateFile(file("a.jpg", "image/jpeg", 100), MAX_FILES)).toContain(
+      `up to ${MAX_FILES} files`
     );
   });
 
