@@ -3,5 +3,10 @@
   "version": "0.1.1",
   "private": true,
   "description": "Core image processing library for Pigo",
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "test": "go test ./...",
+    "check": "go vet ./...",
+    "typecheck": "go vet ./..."
+  }
 }
