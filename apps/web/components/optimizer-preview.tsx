@@ -92,6 +92,7 @@ const ZoomControls = ({ zoom, setTransform }: ZoomControlsProps) => (
 interface ComparisonViewportProps {
   compareRef: React.RefObject<HTMLDivElement | null>;
   job: ImageJob;
+  sliderValue: number;
   transform: { zoom: number; pan: { x: number; y: number } };
   setTransform: React.Dispatch<
     React.SetStateAction<{ zoom: number; pan: { x: number; y: number } }>
@@ -106,6 +107,7 @@ interface ComparisonViewportProps {
 const ComparisonViewport = ({
   compareRef,
   job,
+  sliderValue,
   transform,
   setTransform,
   isPanning,
@@ -149,7 +151,7 @@ const ComparisonViewport = ({
       <>
         <div
           className="pointer-events-none absolute inset-0 flex items-center justify-center"
-          style={{ clipPath: `inset(0 ${100 - job.slider}% 0 0)` }}
+          style={{ clipPath: `inset(0 ${100 - sliderValue}% 0 0)` }}
         >
           <Image
             alt={`Optimized ${job.name}`}
@@ -179,7 +181,7 @@ const ComparisonViewport = ({
               ? "ring-blue-600 shadow-[0_0_8px_rgba(0,112,243,0.3)]"
               : "ring-gray-alpha-400"
           )}
-          style={{ left: `${job.slider}%` }}
+          style={{ left: `${sliderValue}%` }}
         />
 
         <div
@@ -190,7 +192,7 @@ const ComparisonViewport = ({
               ? "scale-110 border-blue-600 text-blue-600 shadow-[0_0_12px_rgba(0,112,243,0.2)]"
               : "border-gray-alpha-400 text-gray-1000 hover:scale-105 hover:border-gray-alpha-500"
           )}
-          style={{ left: `${job.slider}%` }}
+          style={{ left: `${sliderValue}%` }}
         >
           <ChevronsLeftRight className="size-4" strokeWidth={2} />
         </div>
@@ -238,41 +240,77 @@ export const OptimizerPreview = ({
   const startPanRef = useRef({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const lastResultUrlRef = useRef<string | null>(null);
+  const rafIdRef = useRef<number | null>(null);
+  const [revealSlider, setRevealSlider] = useState<number | null>(null);
 
-  // Micro-animation on load
+  const cancelReveal = useCallback(() => {
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+    setRevealSlider(null);
+  }, []);
+
+  // Latest-ref mirrors so the reveal effect can key off the result URL alone —
+  // depending on `job`/`onSliderChange` would cancel the sweep on every
+  // unrelated context update (their identities change each render).
+  const jobRef = useRef(job);
+  const onSliderChangeRef = useRef(onSliderChange);
   useEffect(() => {
-    if (job.result && lastResultUrlRef.current !== job.result.url) {
-      lastResultUrlRef.current = job.result.url;
+    jobRef.current = job;
+    onSliderChangeRef.current = onSliderChange;
+  });
 
+  const resultUrl = job.result?.url ?? null;
+
+  // Reveal sweep when a new result arrives. Explanatory motion: 800ms easeOutQuart.
+  useEffect(() => {
+    if (!resultUrl) {
+      return;
+    }
+
+    // Commit the final value once; the sweep itself stays local.
+    onSliderChangeRef.current(jobRef.current, 50);
+
+    let rafId: number;
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      rafId = requestAnimationFrame(() => {
+        rafIdRef.current = null;
+        setRevealSlider(null);
+      });
+    } else {
       let start: number | null = null;
-      // Duration of animation: 800ms
       const duration = 800;
-      const initialValue = 0;
       const targetValue = 50;
 
       const animate = (timestamp: number) => {
         if (!start) {
           start = timestamp;
         }
-        const elapsed = timestamp - start;
-        const progress = Math.min(elapsed / duration, 1);
-
-        // Easing function: easeOutQuart
+        const progress = Math.min((timestamp - start) / duration, 1);
         const ease = 1 - (1 - progress) ** 4;
-        const nextValue = initialValue + (targetValue - initialValue) * ease;
-
-        onSliderChange(job, Math.round(nextValue));
 
         if (progress < 1) {
-          requestAnimationFrame(animate);
+          setRevealSlider(targetValue * ease);
+          rafId = requestAnimationFrame(animate);
+          rafIdRef.current = rafId;
+        } else {
+          setRevealSlider(null);
+          rafIdRef.current = null;
         }
       };
 
-      onSliderChange(job, initialValue);
-      requestAnimationFrame(animate);
+      rafId = requestAnimationFrame(animate);
     }
-  }, [job, onSliderChange]);
+
+    rafIdRef.current = rafId;
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      rafIdRef.current = null;
+    };
+  }, [resultUrl]);
 
   // Wheel Zoom event listener
   useEffect(() => {
@@ -329,6 +367,7 @@ export const OptimizerPreview = ({
   );
 
   const onComparePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    cancelReveal();
     if (!job.result) {
       return;
     }
@@ -385,6 +424,8 @@ export const OptimizerPreview = ({
     setIsPanning(false);
   };
 
+  const displaySlider = revealSlider ?? job.slider;
+
   // Cursor logic based on zoom and drag state
   return (
     <div className="flex flex-col gap-4 lg:min-h-0 lg:flex-1">
@@ -429,6 +470,7 @@ export const OptimizerPreview = ({
         onComparePointerDown={onComparePointerDown}
         onComparePointerMove={onComparePointerMove}
         setTransform={setTransform}
+        sliderValue={displaySlider}
         transform={transform}
       />
 
@@ -437,7 +479,7 @@ export const OptimizerPreview = ({
           <div className="flex items-center justify-between gap-3">
             <span className="text-label-13 text-gray-900">Original</span>
             <span className="text-label-13-mono text-gray-1000">
-              {job.slider}%
+              {Math.round(displaySlider)}%
             </span>
             <span className="text-label-13 text-gray-900">Optimized</span>
           </div>
@@ -448,10 +490,11 @@ export const OptimizerPreview = ({
             min="0"
             step="1"
             type="range"
-            value={job.slider}
-            onChange={(event) =>
-              onSliderChange(job, Number(event.target.value))
-            }
+            value={Math.round(displaySlider)}
+            onChange={(event) => {
+              cancelReveal();
+              onSliderChange(job, Number(event.target.value));
+            }}
           />
         </div>
       ) : null}

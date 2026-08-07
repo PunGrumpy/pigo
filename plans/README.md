@@ -4,7 +4,7 @@ Produced by an animation/motion audit of `apps/web` at commit `a322df8` (2026-08
 
 | # | Plan | Severity | Status |
 | --- | --- | --- | --- |
-| 001 | [Cancelable, local compare-slider reveal](001-cancelable-local-slider-reveal.md) | HIGH | TODO |
+| 001 | [Cancelable, local compare-slider reveal](001-cancelable-local-slider-reveal.md) | HIGH | DONE |
 | 002 | [Remove selection layout jump](002-remove-selection-layout-jump.md) | HIGH | TODO |
 | 003 | [Scope `transition-all`](003-scope-transition-all.md) | MEDIUM | TODO |
 | 004 | [Progress bar via `scaleX`](004-progress-bar-scalex.md) | MEDIUM | TODO |

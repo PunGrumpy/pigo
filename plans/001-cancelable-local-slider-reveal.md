@@ -1,6 +1,6 @@
 # 001 — Make the compare-slider reveal local, cancelable, and reduced-motion aware
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: a322df8
 - **Severity**: HIGH
 - **Category**: Performance / Interruptibility
@@ -77,62 +77,69 @@ useEffect(() => {
    }, []);
    ```
 
-2. Replace the whole `// Micro-animation on load` effect (current lines 243-275) with:
+2. Replace the whole `// Micro-animation on load` effect (current lines 243-275, including the `lastResultUrlRef` declaration, which is no longer needed) with latest-ref mirrors plus a single effect keyed on the result URL. The cleanup cancels the loop on unmount, on job/result switches, and lets analyzers see the rAF loop is cancelled in the same effect:
 
    ```tsx
+   // Latest-ref mirrors so the reveal effect can key off the result URL alone —
+   // depending on `job`/`onSliderChange` would cancel the sweep on every
+   // unrelated context update (their identities change each render).
+   const jobRef = useRef(job);
+   const onSliderChangeRef = useRef(onSliderChange);
+   useEffect(() => {
+     jobRef.current = job;
+     onSliderChangeRef.current = onSliderChange;
+   });
+
+   const resultUrl = job.result?.url ?? null;
+
    // Reveal sweep when a new result arrives. Explanatory motion: 800ms easeOutQuart.
    useEffect(() => {
-     if (!(job.result && lastResultUrlRef.current !== job.result.url)) {
+     if (!resultUrl) {
        return;
-     }
-     lastResultUrlRef.current = job.result.url;
-
-     if (rafIdRef.current !== null) {
-       cancelAnimationFrame(rafIdRef.current);
-       rafIdRef.current = null;
      }
 
      // Commit the final value once; the sweep itself stays local.
-     onSliderChange(job, 50);
+     onSliderChangeRef.current(jobRef.current, 50);
+
+     let rafId: number;
 
      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-       setRevealSlider(null);
-       return;
-     }
-
-     let start: number | null = null;
-     const duration = 800;
-     const targetValue = 50;
-
-     const animate = (timestamp: number) => {
-       if (!start) {
-         start = timestamp;
-       }
-       const progress = Math.min((timestamp - start) / duration, 1);
-       const ease = 1 - (1 - progress) ** 4;
-       setRevealSlider(targetValue * ease);
-
-       if (progress < 1) {
-         rafIdRef.current = requestAnimationFrame(animate);
-       } else {
+       rafId = requestAnimationFrame(() => {
          rafIdRef.current = null;
          setRevealSlider(null);
-       }
+       });
+     } else {
+       let start: number | null = null;
+       const duration = 800;
+       const targetValue = 50;
+
+       const animate = (timestamp: number) => {
+         if (!start) {
+           start = timestamp;
+         }
+         const progress = Math.min((timestamp - start) / duration, 1);
+         const ease = 1 - (1 - progress) ** 4;
+
+         if (progress < 1) {
+           setRevealSlider(targetValue * ease);
+           rafId = requestAnimationFrame(animate);
+           rafIdRef.current = rafId;
+         } else {
+           setRevealSlider(null);
+           rafIdRef.current = null;
+         }
+       };
+
+       rafId = requestAnimationFrame(animate);
+     }
+
+     rafIdRef.current = rafId;
+
+     return () => {
+       cancelAnimationFrame(rafId);
+       rafIdRef.current = null;
      };
-
-     setRevealSlider(0);
-     rafIdRef.current = requestAnimationFrame(animate);
-   }, [job, onSliderChange]);
-
-   // Unmount-only cleanup for the reveal loop.
-   useEffect(
-     () => () => {
-       if (rafIdRef.current !== null) {
-         cancelAnimationFrame(rafIdRef.current);
-       }
-     },
-     []
-   );
+   }, [resultUrl]);
    ```
 
 3. Derive the displayed value right after the effects and pass it down. Add to `OptimizerPreview` body:
@@ -148,9 +155,13 @@ useEffect(() => {
 
    Leave `job.slider` as-is inside `onComparePointerDown` (line 344) — the committed value is already 50 during the reveal and pointer-down cancels it.
 
+   Also render the animating value in the percent readout (line ~439): `{job.slider}%` → `{Math.round(displaySlider)}%`.
+
+   Note: all `setRevealSlider` calls live inside rAF callbacks, never synchronously in the effect body — the repo's react-compiler lint (`EffectSetState`) forbids synchronous setState in effects.
+
 4. Interrupt on user input:
    - First line of `onComparePointerDown` (before the `job.result` guard): `cancelReveal();`
-   - In the bottom `<input type="range">` (current line 444-455): change `value={job.slider}` to `value={displaySlider}` and make `onChange`:
+   - In the bottom `<input type="range">` (current line 444-455): change `value={job.slider}` to `value={Math.round(displaySlider)}` and make `onChange`:
 
      ```tsx
      onChange={(event) => {
