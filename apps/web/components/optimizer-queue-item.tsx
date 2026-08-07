@@ -27,10 +27,9 @@ export const OptimizerQueueItem = ({
   return (
     <button
       className={cn(
-        "flex w-full items-center gap-2.5 rounded-[6px] px-2.5 py-2 text-left transition-colors duration-150 outline-none",
+        "flex w-full items-center gap-2.5 rounded-[6px] border border-transparent px-2.5 py-2 text-left transition-colors duration-150 outline-none",
         "hover:bg-gray-200 active:bg-gray-300",
-        selected &&
-          "bg-gray-200 text-gray-1000 font-semibold border border-gray-alpha-400"
+        selected && "bg-gray-200 text-gray-1000 border-gray-alpha-400"
       )}
       type="button"
       onClick={onSelect}
@@ -49,10 +48,8 @@ export const OptimizerQueueItem = ({
       <span className="min-w-0 flex-1">
         <strong
           className={cn(
-            "block truncate text-label-13 leading-tight",
-            selected
-              ? "text-gray-1000 font-semibold"
-              : "text-gray-900 font-normal"
+            "block truncate text-label-13 font-medium leading-tight",
+            selected ? "text-gray-1000" : "text-gray-900"
           )}
         >
           {job.name}
