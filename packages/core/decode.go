@@ -34,6 +34,9 @@ func Decode(r io.Reader) (image.Image, string, []byte, error) {
 	if config.Width <= 0 || config.Height <= 0 {
 		return nil, "", nil, fmt.Errorf("image dimensions are invalid")
 	}
+	if config.Width > MaxDimension || config.Height > MaxDimension {
+		return nil, "", nil, fmt.Errorf("image dimensions exceed the %d pixel per-side limit", MaxDimension)
+	}
 	if int64(config.Width)*int64(config.Height) > MaxPixels {
 		return nil, "", nil, fmt.Errorf("image exceeds the 100MP pixel limit")
 	}

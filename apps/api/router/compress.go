@@ -18,6 +18,10 @@ func HandleCompress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if r.Context().Err() != nil {
+		return // client gone or deadline passed; chi's Timeout middleware owns the 504
+	}
+
 	file, _, err := r.FormFile("file")
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "Multipart field \"file\" is required")
@@ -41,6 +45,10 @@ func HandleCompress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if r.Context().Err() != nil {
+		return // client gone or deadline passed; chi's Timeout middleware owns the 504
+	}
+
 	outputFormat := opts.OutputFormat
 	if outputFormat == "same" {
 		outputFormat = format
@@ -58,6 +66,10 @@ func HandleCompress(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
+	}
+
+	if r.Context().Err() != nil {
+		return // client gone or deadline passed; chi's Timeout middleware owns the 504
 	}
 
 	out, contentType, err := core.Encode(resizedImg, outputFormat, opts.Quality)

@@ -32,6 +32,10 @@ func Encode(
 }
 
 func flattenForJPEG(src image.Image) image.Image {
+	if opaquer, ok := src.(interface{ Opaque() bool }); ok && opaquer.Opaque() {
+		return src
+	}
+
 	bounds := src.Bounds()
 	dst := image.NewRGBA(image.Rect(0, 0, bounds.Dx(), bounds.Dy()))
 	xdraw.Draw(dst, dst.Bounds(), &image.Uniform{C: color.White}, image.Point{}, xdraw.Src)
