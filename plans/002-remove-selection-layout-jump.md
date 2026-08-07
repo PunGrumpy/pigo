@@ -1,6 +1,6 @@
 # 002 — Remove the layout jump on queue-item and format-button selection
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: a322df8
 - **Severity**: HIGH
 - **Category**: Craft / state-change jump (Physicality)

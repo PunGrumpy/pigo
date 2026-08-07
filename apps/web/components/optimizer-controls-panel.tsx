@@ -116,9 +116,9 @@ export const OptimizerControlsPanel = () => {
                     key={format}
                     type="button"
                     className={cn(
-                      "h-8 rounded-md text-[11px] font-medium transition-all duration-150 outline-none uppercase select-none cursor-pointer",
+                      "h-8 rounded-md text-[11px] font-medium transition-[color,background-color,box-shadow] duration-150 outline-none uppercase select-none cursor-pointer",
                       isActive
-                        ? "bg-background-100 text-gray-1000 shadow-2xs font-semibold"
+                        ? "bg-background-100 text-gray-1000 shadow-2xs"
                         : "text-gray-800 hover:text-gray-1000"
                     )}
                     onClick={() =>
