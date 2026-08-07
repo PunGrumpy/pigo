@@ -119,8 +119,8 @@ export const OptimizerQueuePanel = () => {
               </div>
               <div className="h-1 bg-gray-alpha-300 w-full rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-gray-1000 transition-all duration-300 ease-out"
-                  style={{ width: `${processPercent}%` }}
+                  className="h-full w-full origin-left bg-gray-1000 transition-transform duration-300 ease-out"
+                  style={{ transform: `scaleX(${processPercent / 100})` }}
                 />
               </div>
             </div>

@@ -1,6 +1,6 @@
 # 004 — Animate the batch progress bar with `scaleX`, not `width`
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: a322df8
 - **Severity**: MEDIUM
 - **Category**: Performance
