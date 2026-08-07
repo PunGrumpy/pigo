@@ -1,8 +1,12 @@
 import type { CompressionOptions, OutputChoice } from "./types";
 
 export const MAX_FILES = 50;
+// Mirrors MaxFileSize in packages/core/types.go — change both together.
 export const MAX_FILE_SIZE = 20 * 1024 * 1024;
+// Mirrors MaxPixels in packages/core/types.go — change both together.
 export const MAX_PIXELS = 100_000_000;
+// Mirrors MaxDimension in packages/core/types.go — change both together.
+export const MAX_DIMENSION = 16_384;
 export const ACCEPTED_MIME_TYPES = [
   "image/jpeg",
   "image/png",

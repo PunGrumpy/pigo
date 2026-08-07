@@ -5,6 +5,8 @@ import { ImageIcon } from "lucide-react";
 import { OptimizerPreview } from "@/components/optimizer-preview";
 import { useDragDrop } from "@/components/providers/drag-drop-provider";
 import { useOptimizerContext } from "@/components/providers/optimizer-provider";
+import { MAX_FILE_SIZE } from "@/lib/image/constants";
+import { formatBytes } from "@/lib/image/format";
 import { cn } from "@/lib/utils";
 
 export const OptimizerPreviewPanel = () => {
@@ -43,7 +45,7 @@ export const OptimizerPreviewPanel = () => {
             Drop or select images to start compressing
           </p>
           <p className="text-[12px] text-gray-800">
-            JPEG, PNG, or WebP up to 10MB
+            JPEG, PNG, or WebP up to {formatBytes(MAX_FILE_SIZE)}
           </p>
         </div>
       )}
