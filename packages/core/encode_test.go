@@ -64,6 +64,52 @@ func TestEncodeJPEGFlattensTransparency(t *testing.T) {
 	}
 }
 
+func TestEncodeJPEGOpaqueSourceSkipsFlattenCopy(t *testing.T) {
+	src := image.NewRGBA(image.Rect(0, 0, 10, 10))
+	for y := 0; y < 10; y++ {
+		for x := 0; x < 10; x++ {
+			src.Set(x, y, color.RGBA{R: 200, G: 100, B: 50, A: 255})
+		}
+	}
+	if !src.Opaque() {
+		t.Fatalf("test fixture must be fully opaque")
+	}
+
+	data, contentType, err := Encode(src, "jpeg", 90)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if contentType != "image/jpeg" {
+		t.Fatalf("got contentType %q, want %q", contentType, "image/jpeg")
+	}
+
+	decoded, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		t.Fatalf("failed to decode encoded jpeg: %v", err)
+	}
+
+	r, g, b, _ := decoded.At(5, 5).RGBA()
+	wantR, wantG, wantB := uint32(200*257), uint32(100*257), uint32(50*257)
+	// JPEG is lossy, so allow a small tolerance around the source color.
+	const tolerance = 2000
+	if diff := absDiff(r, wantR); diff > tolerance {
+		t.Fatalf("got r=%d, want near %d (diff %d)", r, wantR, diff)
+	}
+	if diff := absDiff(g, wantG); diff > tolerance {
+		t.Fatalf("got g=%d, want near %d (diff %d)", g, wantG, diff)
+	}
+	if diff := absDiff(b, wantB); diff > tolerance {
+		t.Fatalf("got b=%d, want near %d (diff %d)", b, wantB, diff)
+	}
+}
+
+func absDiff(a, b uint32) uint32 {
+	if a > b {
+		return a - b
+	}
+	return b - a
+}
+
 func TestEncodePNGRoundTrip(t *testing.T) {
 	src := image.NewRGBA(image.Rect(0, 0, 12, 8))
 
