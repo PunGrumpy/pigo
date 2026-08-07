@@ -75,7 +75,7 @@ const ZoomControls = ({ zoom, setTransform }: ZoomControlsProps) => (
     </Button>
     {zoom > 1 && (
       <Button
-        className="ml-1 text-[11px] px-2 h-8 flex items-center gap-1 animate-in fade-in zoom-in-95 slide-in-from-left-2 duration-150 ease-out cursor-pointer rounded-full"
+        className="ml-1 text-[11px] px-2 h-8 flex items-center gap-1 cursor-pointer rounded-full opacity-100 translate-x-0 scale-100 transition-[opacity,translate,scale] duration-150 ease-out starting:opacity-0 starting:-translate-x-2 starting:scale-95"
         size="sm"
         variant="ghost"
         onClick={() => {

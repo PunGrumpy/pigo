@@ -20,5 +20,6 @@ Produced by an animation/motion audit of `apps/web` at commit `a322df8` (2026-08
 
 ## Not planned (from the audit)
 
-- LOW: motion tokens (`--ease-*`) consolidation; zoom Reset button keyframe entrance/exit.
+- LOW: motion tokens (`--ease-*`) consolidation.
+- LOW (done in a follow-up): zoom Reset button keyframe entrance — replaced with a scoped `transition-[opacity,translate,scale]` + `starting:` entrance in `optimizer-preview.tsx`.
 - Missed opportunities: success-badge entrance, notice-banner entrance, queue item entrances, empty↔preview crossfade.
