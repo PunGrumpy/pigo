@@ -1,6 +1,6 @@
 # 001 — Make the compare-slider reveal local, cancelable, and reduced-motion aware
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: a322df8
 - **Severity**: HIGH
 - **Category**: Performance / Interruptibility
@@ -96,7 +96,10 @@ useEffect(() => {
      onSliderChange(job, 50);
 
      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-       setRevealSlider(null);
+       rafIdRef.current = requestAnimationFrame(() => {
+         rafIdRef.current = null;
+         setRevealSlider(null);
+       });
        return;
      }
 
@@ -110,17 +113,16 @@ useEffect(() => {
        }
        const progress = Math.min((timestamp - start) / duration, 1);
        const ease = 1 - (1 - progress) ** 4;
-       setRevealSlider(targetValue * ease);
 
        if (progress < 1) {
+         setRevealSlider(targetValue * ease);
          rafIdRef.current = requestAnimationFrame(animate);
        } else {
-         rafIdRef.current = null;
          setRevealSlider(null);
+         rafIdRef.current = null;
        }
      };
 
-     setRevealSlider(0);
      rafIdRef.current = requestAnimationFrame(animate);
    }, [job, onSliderChange]);
 
@@ -148,9 +150,13 @@ useEffect(() => {
 
    Leave `job.slider` as-is inside `onComparePointerDown` (line 344) — the committed value is already 50 during the reveal and pointer-down cancels it.
 
+   Also render the animating value in the percent readout (line ~439): `{job.slider}%` → `{Math.round(displaySlider)}%`.
+
+   Note: all `setRevealSlider` calls live inside rAF callbacks, never synchronously in the effect body — the repo's react-compiler lint (`EffectSetState`) forbids synchronous setState in effects.
+
 4. Interrupt on user input:
    - First line of `onComparePointerDown` (before the `job.result` guard): `cancelReveal();`
-   - In the bottom `<input type="range">` (current line 444-455): change `value={job.slider}` to `value={displaySlider}` and make `onChange`:
+   - In the bottom `<input type="range">` (current line 444-455): change `value={job.slider}` to `value={Math.round(displaySlider)}` and make `onChange`:
 
      ```tsx
      onChange={(event) => {
