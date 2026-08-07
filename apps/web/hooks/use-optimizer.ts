@@ -137,17 +137,17 @@ export const useOptimizer = () => {
       const generation = invalidateJob(job.id);
       const resolvedOptions = sanitizeCompressionOptions(nextOptions);
 
-      updateJob(job.id, (current) => {
-        if (current.result?.url) {
-          URL.revokeObjectURL(current.result.url);
-        }
-        return {
-          ...current,
-          error: undefined,
-          result: undefined,
-          status: "processing",
-        };
-      });
+      const prior = jobsRef.current.find((entry) => entry.id === job.id);
+      if (prior?.result?.url) {
+        URL.revokeObjectURL(prior.result.url);
+      }
+
+      updateJob(job.id, (current) => ({
+        ...current,
+        error: undefined,
+        result: undefined,
+        status: "processing",
+      }));
 
       try {
         const result = shouldUseBrowserEncoder(
@@ -252,19 +252,21 @@ export const useOptimizer = () => {
 
   const patchOptions = useCallback(
     (patch: Partial<CompressionOptions>, autoApply = false) => {
-      setOptions((current) => {
-        const next = sanitizeCompressionOptions({ ...current, ...patch });
-        optionsRef.current = next;
-        if (autoApply) {
-          queueMicrotask(() => applyOptions());
-        } else if ("quality" in patch && Object.keys(patch).length === 1) {
-          setOptionsDirty(false);
-          scheduleQualityApply();
-        } else {
-          setOptionsDirty(true);
-        }
-        return next;
+      const next = sanitizeCompressionOptions({
+        ...optionsRef.current,
+        ...patch,
       });
+      optionsRef.current = next;
+      setOptions(next);
+
+      if (autoApply) {
+        queueMicrotask(() => applyOptions());
+      } else if ("quality" in patch && Object.keys(patch).length === 1) {
+        setOptionsDirty(false);
+        scheduleQualityApply();
+      } else {
+        setOptionsDirty(true);
+      }
     },
     [applyOptions, scheduleQualityApply]
   );
@@ -274,18 +276,16 @@ export const useOptimizer = () => {
       removedIdsRef.current.add(id);
       invalidateJob(id);
 
-      setJobs((current) => {
-        const removed = current.find((job) => job.id === id);
-        if (removed) {
-          revokeJobUrls(removed);
-        }
+      const removed = jobsRef.current.find((job) => job.id === id);
+      if (removed) {
+        revokeJobUrls(removed);
+      }
 
-        const remaining = current.filter((job) => job.id !== id);
-        setSelectedId((currentSelected) =>
-          currentSelected === id ? (remaining[0]?.id ?? null) : currentSelected
-        );
-        return remaining;
-      });
+      const remaining = jobsRef.current.filter((job) => job.id !== id);
+      setJobs(remaining);
+      setSelectedId((currentSelected) =>
+        currentSelected === id ? (remaining[0]?.id ?? null) : currentSelected
+      );
 
       generationRef.current.delete(id);
     },
