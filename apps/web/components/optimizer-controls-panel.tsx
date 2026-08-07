@@ -106,13 +106,16 @@ export const OptimizerControlsPanel = () => {
             Compression Settings
           </h3>
 
-          <div className="flex flex-col gap-1.5">
-            <span className="text-label-12 text-gray-800">Output Format</span>
+          <fieldset className="min-w-0">
+            <legend className="mb-1.5 block text-label-12 text-gray-800">
+              Output Format
+            </legend>
             <div className="grid grid-cols-4 rounded-md bg-gray-200 p-0.5 gap-0.5 border border-gray-alpha-300">
               {(["same", "jpeg", "png", "webp"] as const).map((format) => {
                 const isActive = options.outputFormat === format;
                 return (
                   <button
+                    aria-pressed={isActive}
                     key={format}
                     type="button"
                     className={cn(
@@ -132,7 +135,7 @@ export const OptimizerControlsPanel = () => {
                 );
               })}
             </div>
-          </div>
+          </fieldset>
 
           <label
             aria-label="Quality"

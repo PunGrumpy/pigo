@@ -26,6 +26,7 @@ export const OptimizerQueueItem = ({
 
   return (
     <button
+      aria-current={selected ? "true" : undefined}
       className={cn(
         "flex w-full items-center gap-2.5 rounded-[6px] border border-transparent px-2.5 py-2 text-left transition-colors duration-150 outline-none",
         "hover:bg-gray-200 active:bg-gray-300",

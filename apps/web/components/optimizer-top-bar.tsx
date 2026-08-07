@@ -20,6 +20,7 @@ export const OptimizerTopBar = () => {
         className="flex h-full items-center gap-1 -ml-4"
       >
         <button
+          aria-pressed={filterTab === "all"}
           className={cn(
             "relative flex h-full items-center px-4 text-label-14 font-medium transition-colors",
             filterTab === "all"
@@ -36,6 +37,7 @@ export const OptimizerTopBar = () => {
         </button>
 
         <button
+          aria-pressed={filterTab === "optimized"}
           className={cn(
             "relative flex h-full items-center px-4 text-label-14 font-medium transition-colors",
             filterTab === "optimized"
@@ -59,6 +61,7 @@ export const OptimizerTopBar = () => {
         </button>
 
         <button
+          aria-pressed={filterTab === "errors"}
           className={cn(
             "relative flex h-full items-center px-4 text-label-14 font-medium transition-colors",
             filterTab === "errors"
