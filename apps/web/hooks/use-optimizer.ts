@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { compressWithApi } from "@/lib/compress/api";
 import { compressWithBrowser } from "@/lib/compress/browser";
 import { downloadAll, downloadJob } from "@/lib/compress/download";
+import { MAX_CONCURRENT_JOBS, runWithConcurrency } from "@/lib/compress/pool";
 import {
   DEFAULT_COMPRESSION_OPTIONS,
   sanitizeCompressionOptions,
@@ -28,10 +29,6 @@ export const useOptimizer = () => {
   );
   if (generationRef.current === (null as unknown as Map<string, number>)) {
     generationRef.current = new Map();
-  }
-  const removedIdsRef = useRef<Set<string>>(null as unknown as Set<string>);
-  if (removedIdsRef.current === (null as unknown as Set<string>)) {
-    removedIdsRef.current = new Set();
   }
   const [jobs, setJobs] = useState<ImageJob[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -125,16 +122,26 @@ export const useOptimizer = () => {
     return nextGeneration;
   }, []);
 
-  const isJobRunStale = useCallback((id: string, generation: number) => {
-    if (removedIdsRef.current.has(id)) {
-      return true;
-    }
-    return generationRef.current.get(id) !== generation;
-  }, []);
+  // Removal deletes the job's generation entry outright, so a dropped job reads
+  // as stale here for the same reason a superseded one does.
+  const isJobRunStale = useCallback(
+    (id: string, generation: number) =>
+      generationRef.current.get(id) !== generation,
+    []
+  );
 
   const runJob = useCallback(
-    async (job: ImageJob, nextOptions: CompressionOptions) => {
-      const generation = invalidateJob(job.id);
+    async (
+      job: ImageJob,
+      nextOptions: CompressionOptions,
+      generation: number
+    ) => {
+      // Jobs wait their turn in the pool, so a newer batch may have superseded
+      // this one before it ever started. Skip the work rather than race it.
+      if (isJobRunStale(job.id, generation)) {
+        return;
+      }
+
       const resolvedOptions = sanitizeCompressionOptions(nextOptions);
 
       const prior = jobsRef.current.find((entry) => entry.id === job.id);
@@ -159,7 +166,6 @@ export const useOptimizer = () => {
 
         if (isJobRunStale(job.id, generation)) {
           URL.revokeObjectURL(result.url);
-          removedIdsRef.current.delete(job.id);
           return;
         }
 
@@ -171,7 +177,6 @@ export const useOptimizer = () => {
         }));
       } catch (error) {
         if (isJobRunStale(job.id, generation)) {
-          removedIdsRef.current.delete(job.id);
           return;
         }
 
@@ -182,7 +187,29 @@ export const useOptimizer = () => {
         }));
       }
     },
-    [invalidateJob, isJobRunStale, updateJob]
+    [isJobRunStale, updateJob]
+  );
+
+  /**
+   * Claims a generation for every job up front, then works through the batch a
+   * few at a time. Claiming first means a later batch supersedes this one
+   * wholesale: jobs still queued here see a stale generation and bail.
+   */
+  const startBatch = useCallback(
+    (batch: readonly ImageJob[], nextOptions: CompressionOptions) => {
+      if (batch.length === 0) {
+        return;
+      }
+
+      const generations = new Map(
+        batch.map((job) => [job.id, invalidateJob(job.id)])
+      );
+
+      void runWithConcurrency(batch, MAX_CONCURRENT_JOBS, (job) =>
+        runJob(job, nextOptions, generations.get(job.id) ?? 0)
+      );
+    },
+    [invalidateJob, runJob]
   );
 
   const addFiles = useCallback(
@@ -202,11 +229,9 @@ export const useOptimizer = () => {
 
       setJobs((current) => [...current, ...nextJobs]);
       setSelectedId((current) => current ?? nextJobs[0]?.id ?? null);
-      for (const job of nextJobs) {
-        void runJob(job, optionsRef.current);
-      }
+      startBatch(nextJobs, optionsRef.current);
     },
-    [runJob]
+    [startBatch]
   );
 
   useEffect(() => {
@@ -237,10 +262,8 @@ export const useOptimizer = () => {
     optionsRef.current = resolved;
     clearQualityTimer();
     setOptionsDirty(false);
-    for (const job of jobsRef.current) {
-      void runJob(job, resolved);
-    }
-  }, [clearQualityTimer, runJob]);
+    startBatch(jobsRef.current, resolved);
+  }, [clearQualityTimer, startBatch]);
 
   const scheduleQualityApply = useCallback(() => {
     clearQualityTimer();
@@ -271,31 +294,23 @@ export const useOptimizer = () => {
     [applyOptions, scheduleQualityApply]
   );
 
-  const removeJob = useCallback(
-    (id: string) => {
-      removedIdsRef.current.add(id);
-      invalidateJob(id);
+  const removeJob = useCallback((id: string) => {
+    const removed = jobsRef.current.find((job) => job.id === id);
+    if (removed) {
+      revokeJobUrls(removed);
+    }
 
-      const removed = jobsRef.current.find((job) => job.id === id);
-      if (removed) {
-        revokeJobUrls(removed);
-      }
+    const remaining = jobsRef.current.filter((job) => job.id !== id);
+    setJobs(remaining);
+    setSelectedId((currentSelected) =>
+      currentSelected === id ? (remaining[0]?.id ?? null) : currentSelected
+    );
 
-      const remaining = jobsRef.current.filter((job) => job.id !== id);
-      setJobs(remaining);
-      setSelectedId((currentSelected) =>
-        currentSelected === id ? (remaining[0]?.id ?? null) : currentSelected
-      );
-
-      generationRef.current.delete(id);
-    },
-    [invalidateJob]
-  );
+    generationRef.current.delete(id);
+  }, []);
 
   const clearAll = useCallback(() => {
     for (const job of jobsRef.current) {
-      removedIdsRef.current.add(job.id);
-      invalidateJob(job.id);
       revokeJobUrls(job);
     }
 
@@ -304,7 +319,7 @@ export const useOptimizer = () => {
     setOptionsDirty(false);
     setNotice(null);
     generationRef.current.clear();
-  }, [invalidateJob]);
+  }, []);
 
   const handleDownloadAll = useCallback(async () => {
     setZipGenerating(true);
