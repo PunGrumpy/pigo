@@ -22,7 +22,7 @@ export const OptimizerTopBar = () => {
         <button
           aria-pressed={filterTab === "all"}
           className={cn(
-            "relative flex h-full items-center px-4 text-label-14 font-medium transition-colors",
+            "relative flex h-full items-center px-4 text-label-14 font-medium transition-colors duration-150",
             filterTab === "all"
               ? "text-gray-1000"
               : "text-gray-800 hover:text-gray-1000"
@@ -39,7 +39,7 @@ export const OptimizerTopBar = () => {
         <button
           aria-pressed={filterTab === "optimized"}
           className={cn(
-            "relative flex h-full items-center px-4 text-label-14 font-medium transition-colors",
+            "relative flex h-full items-center px-4 text-label-14 font-medium transition-colors duration-150",
             filterTab === "optimized"
               ? "text-gray-1000"
               : "text-gray-800 hover:text-gray-1000"
@@ -63,7 +63,7 @@ export const OptimizerTopBar = () => {
         <button
           aria-pressed={filterTab === "errors"}
           className={cn(
-            "relative flex h-full items-center px-4 text-label-14 font-medium transition-colors",
+            "relative flex h-full items-center px-4 text-label-14 font-medium transition-colors duration-150",
             filterTab === "errors"
               ? "text-gray-1000"
               : "text-gray-800 hover:text-gray-1000"
@@ -92,7 +92,7 @@ export const OptimizerTopBar = () => {
         <input
           aria-label="Search images"
           className={cn(
-            "peer h-9 w-full min-w-0 cursor-pointer appearance-none truncate rounded-md border-none bg-background-100 pl-9 pr-3 text-label-13 text-gray-1000 shadow-[0_0_0_1px_var(--ds-gray-alpha-400)] outline-none transition-[box-shadow,color] duration-200",
+            "peer h-9 w-full min-w-0 cursor-pointer appearance-none truncate rounded-md border-none bg-background-100 pl-9 pr-3 text-label-13 text-gray-1000 shadow-[0_0_0_1px_var(--ds-gray-alpha-400)] outline-none transition-[box-shadow,color] duration-150",
             "hover:shadow-[0_0_0_1px_var(--ds-gray-alpha-500)]",
             "focus:outline-none focus-visible:shadow-[0_0_0_1px_var(--ds-gray-600),0_0_0_3px_color-mix(in_oklch,var(--ds-gray-600)_50%,transparent)]",
             "disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-700 disabled:shadow-[0_0_0_1px_var(--ds-gray-alpha-400)]"

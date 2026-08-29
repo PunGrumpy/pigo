@@ -31,7 +31,7 @@ export const OptimizerPreviewPanel = () => {
       ) : (
         <div
           className={cn(
-            "flex flex-1 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-gray-alpha-400 bg-background-100 px-4 py-12 text-center shadow-2xs transition-colors",
+            "flex flex-1 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-gray-alpha-400 bg-background-100 px-4 py-12 text-center shadow-2xs transition-colors duration-150",
             dropActive && "border-blue-700 bg-blue-100/50"
           )}
         >
