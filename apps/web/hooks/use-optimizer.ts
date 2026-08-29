@@ -16,6 +16,8 @@ import { isJobPending } from "@/lib/image/job";
 import { revokeJobUrls } from "@/lib/image/revoke";
 import type { CompressionOptions, ImageJob } from "@/lib/image/types";
 
+export type FilterTab = "all" | "optimized" | "errors";
+
 export const useOptimizer = () => {
   const jobsRef = useRef<ImageJob[]>([]);
   const optionsRef = useRef<CompressionOptions>({
@@ -38,26 +40,21 @@ export const useOptimizer = () => {
   const [optionsDirty, setOptionsDirty] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterTab, setFilterTab] = useState<"all" | "optimized" | "errors">(
-    "all"
-  );
+  const [filterTab, setFilterTab] = useState<FilterTab>("all");
   const [zipGenerating, setZipGenerating] = useState(false);
   const [zipProgress, setZipProgress] = useState(0);
 
-  const filteredJobs = useMemo(
-    () =>
-      jobs.filter((job) => {
-        const matchesSearch = job.name
-          .toLowerCase()
-          .includes(searchQuery.toLowerCase());
-        const matchesTab =
-          filterTab === "all" ||
-          (filterTab === "optimized" && job.status === "done") ||
-          (filterTab === "errors" && job.status === "error");
-        return matchesSearch && matchesTab;
-      }),
-    [jobs, searchQuery, filterTab]
-  );
+  const filteredJobs = useMemo(() => {
+    const needle = searchQuery.toLowerCase();
+    return jobs.filter((job) => {
+      const matchesSearch = job.name.toLowerCase().includes(needle);
+      const matchesTab =
+        filterTab === "all" ||
+        (filterTab === "optimized" && job.status === "done") ||
+        (filterTab === "errors" && job.status === "error");
+      return matchesSearch && matchesTab;
+    });
+  }, [jobs, searchQuery, filterTab]);
 
   useEffect(() => {
     jobsRef.current = jobs;
@@ -86,14 +83,14 @@ export const useOptimizer = () => {
   );
 
   const completedJobs = useMemo(() => jobs.filter((job) => job.result), [jobs]);
-  const isProcessing = jobs.some(isJobPending);
-  const totalOriginal = completedJobs.reduce(
-    (sum, job) => sum + job.originalSize,
-    0
+  const isProcessing = useMemo(() => jobs.some(isJobPending), [jobs]);
+  const totalOriginal = useMemo(
+    () => completedJobs.reduce((sum, job) => sum + job.originalSize, 0),
+    [completedJobs]
   );
-  const totalCompressed = completedJobs.reduce(
-    (sum, job) => sum + (job.result?.size ?? 0),
-    0
+  const totalCompressed = useMemo(
+    () => completedJobs.reduce((sum, job) => sum + (job.result?.size ?? 0), 0),
+    [completedJobs]
   );
   const processedCount = useMemo(
     () =>
@@ -193,7 +190,7 @@ export const useOptimizer = () => {
   /**
    * Claims a generation for every job up front, then works through the batch a
    * few at a time. Claiming first means a later batch supersedes this one
-   * wholesale: jobs still queued here see a stale generation and bail.
+   * wholesale — jobs still queued here see a stale generation and bail.
    */
   const startBatch = useCallback(
     (batch: readonly ImageJob[], nextOptions: CompressionOptions) => {
@@ -334,34 +331,77 @@ export const useOptimizer = () => {
     }
   }, []);
 
-  return {
-    addFiles,
-    applyOptions,
-    clearAll,
-    completedJobs,
-    downloadAll: handleDownloadAll,
-    downloadJob,
-    filterTab,
-    filteredJobs,
-    isProcessing,
-    jobs,
-    notice,
-    options,
-    optionsDirty,
-    patchOptions,
-    processPercent,
-    processedCount,
-    removeJob,
-    searchQuery,
-    selectedId,
-    selectedJob,
-    setFilterTab,
-    setSearchQuery,
-    setSelectedId,
-    totalCompressed,
-    totalOriginal,
-    updateJob,
-    zipGenerating,
-    zipProgress,
-  };
+  // Split so that consumers which only dispatch (queue rows, buttons) can
+  // subscribe to a value that never changes identity, while the reactive slice
+  // re-renders only the components that actually read it.
+  const actions = useMemo(
+    () => ({
+      addFiles,
+      applyOptions,
+      clearAll,
+      downloadAll: handleDownloadAll,
+      downloadJob,
+      patchOptions,
+      removeJob,
+      setFilterTab,
+      setSearchQuery,
+      setSelectedId,
+      updateJob,
+    }),
+    [
+      addFiles,
+      applyOptions,
+      clearAll,
+      handleDownloadAll,
+      patchOptions,
+      removeJob,
+      updateJob,
+    ]
+  );
+
+  const state = useMemo(
+    () => ({
+      completedJobs,
+      filterTab,
+      filteredJobs,
+      isProcessing,
+      jobs,
+      notice,
+      options,
+      optionsDirty,
+      processPercent,
+      processedCount,
+      searchQuery,
+      selectedId,
+      selectedJob,
+      totalCompressed,
+      totalOriginal,
+      zipGenerating,
+      zipProgress,
+    }),
+    [
+      completedJobs,
+      filterTab,
+      filteredJobs,
+      isProcessing,
+      jobs,
+      notice,
+      options,
+      optionsDirty,
+      processPercent,
+      processedCount,
+      searchQuery,
+      selectedId,
+      selectedJob,
+      totalCompressed,
+      totalOriginal,
+      zipGenerating,
+      zipProgress,
+    ]
+  );
+
+  return { actions, state };
 };
+
+export type OptimizerState = ReturnType<typeof useOptimizer>["state"];
+export type OptimizerActions = ReturnType<typeof useOptimizer>["actions"];

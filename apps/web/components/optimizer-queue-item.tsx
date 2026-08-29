@@ -1,27 +1,28 @@
 "use client";
 
 import Image from "next/image";
+import { memo } from "react";
 
 import { OptimizerStatusBadge } from "@/components/optimizer-status-badge";
-import { useOptimizerContext } from "@/components/providers/optimizer-provider";
 import { formatBytes } from "@/lib/image/format";
-import type { ImageJob } from "@/lib/image/types";
+import type { ImageFormat, ImageJob } from "@/lib/image/types";
 import { cn } from "@/lib/utils";
 
 interface OptimizerQueueItemProps {
   job: ImageJob;
   selected: boolean;
-  onSelect: () => void;
+  targetFormat: ImageFormat;
+  onSelect: (id: string) => void;
 }
 
-export const OptimizerQueueItem = ({
+// Reads no context and takes only value props, so a queue of 50 rows reconciles
+// just the row whose job actually changed.
+const OptimizerQueueItemImpl = ({
   job,
   selected,
+  targetFormat,
   onSelect,
 }: OptimizerQueueItemProps) => {
-  const { options } = useOptimizerContext();
-  const targetFormat =
-    options.outputFormat === "same" ? job.inputFormat : options.outputFormat;
   const isConverted = job.inputFormat !== targetFormat;
 
   return (
@@ -33,7 +34,7 @@ export const OptimizerQueueItem = ({
         selected && "bg-gray-200 text-gray-1000 border-gray-alpha-400"
       )}
       type="button"
-      onClick={onSelect}
+      onClick={() => onSelect(job.id)}
     >
       <div className="relative size-8 shrink-0 overflow-hidden rounded-md border border-gray-alpha-300 bg-background-200">
         <Image
@@ -72,3 +73,5 @@ export const OptimizerQueueItem = ({
     </button>
   );
 };
+
+export const OptimizerQueueItem = memo(OptimizerQueueItemImpl);

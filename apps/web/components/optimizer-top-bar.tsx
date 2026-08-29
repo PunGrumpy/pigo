@@ -2,12 +2,15 @@
 
 import { Search } from "lucide-react";
 
-import { useOptimizerContext } from "@/components/providers/optimizer-provider";
+import {
+  useOptimizerActions,
+  useOptimizerState,
+} from "@/components/providers/optimizer-provider";
 import { cn } from "@/lib/utils";
 
 export const OptimizerTopBar = () => {
-  const { jobs, searchQuery, setSearchQuery, filterTab, setFilterTab } =
-    useOptimizerContext();
+  const { jobs, searchQuery, filterTab } = useOptimizerState();
+  const { setFilterTab, setSearchQuery } = useOptimizerActions();
 
   const countAll = jobs.length;
   const countOptimized = jobs.filter((job) => job.status === "done").length;

@@ -6,7 +6,10 @@ import { Spinner } from "@vercel/geistdocs/components/spinner";
 import { Download, FileArchive, RefreshCw, Info } from "lucide-react";
 
 import { OptimizerMetadataGrid } from "@/components/optimizer-metadata-grid";
-import { useOptimizerContext } from "@/components/providers/optimizer-provider";
+import {
+  useOptimizerActions,
+  useOptimizerState,
+} from "@/components/providers/optimizer-provider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MAX_DIMENSION } from "@/lib/image/constants";
 import { formatBytes, formatSavings } from "@/lib/image/format";
@@ -23,12 +26,10 @@ export const OptimizerControlsPanel = () => {
     selectedJob,
     totalCompressed,
     totalOriginal,
-    applyOptions,
-    downloadAll,
-    patchOptions,
     zipGenerating,
     zipProgress,
-  } = useOptimizerContext();
+  } = useOptimizerState();
+  const { applyOptions, downloadAll, patchOptions } = useOptimizerActions();
 
   const completedCount = completedJobs.length;
   const jobCount = jobs.length;

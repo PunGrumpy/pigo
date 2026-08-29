@@ -4,15 +4,18 @@ import { ImageIcon } from "lucide-react";
 
 import { OptimizerPreview } from "@/components/optimizer-preview";
 import { useDragDrop } from "@/components/providers/drag-drop-provider";
-import { useOptimizerContext } from "@/components/providers/optimizer-provider";
+import {
+  useOptimizerActions,
+  useOptimizerState,
+} from "@/components/providers/optimizer-provider";
 import { MAX_FILE_SIZE } from "@/lib/image/constants";
 import { formatBytes } from "@/lib/image/format";
 import { cn } from "@/lib/utils";
 
 export const OptimizerPreviewPanel = () => {
   const { dropActive } = useDragDrop();
-  const { selectedJob, downloadJob, removeJob, updateJob } =
-    useOptimizerContext();
+  const { selectedJob } = useOptimizerState();
+  const { downloadJob, removeJob, updateJob } = useOptimizerActions();
 
   return (
     <section

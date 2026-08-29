@@ -11,7 +11,7 @@ import {
 } from "react";
 import type { PropsWithChildren } from "react";
 
-import { useOptimizerContext } from "./optimizer-provider";
+import { useOptimizerActions } from "./optimizer-provider";
 
 interface DragDropContextType {
   readonly dropActive: boolean;
@@ -75,7 +75,7 @@ const traverseFileTree = async (item: DataTransferItem): Promise<File[]> => {
 
 export const DragDropProvider = ({ children }: PropsWithChildren) => {
   const [dropActive, setDropActive] = useState(false);
-  const { addFiles } = useOptimizerContext();
+  const { addFiles } = useOptimizerActions();
   const dragCounter = useRef(0);
 
   const handleDragEnter = useCallback((event: DragEvent) => {
