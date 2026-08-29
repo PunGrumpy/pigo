@@ -16,6 +16,14 @@ export default defineConfig({
         rules: ["react-doctor/no-create-object-url-without-revoke"],
       },
       {
+        // The reveal sweep stores each scheduled frame id in a ref so that
+        // pointer handlers outside the effect can abort it mid-sweep. Cleanup
+        // cancels whatever id the ref currently holds; the rule only follows a
+        // frame id held in a local variable.
+        files: ["hooks/use-compare-slider.ts"],
+        rules: ["react-doctor/effect-raf-loop-needs-cancel"],
+      },
+      {
         // Deliberate one-shot client-side health probe: it measures
         // whether the API is reachable from the user's browser, so it
         // cannot move to the server or an event handler.

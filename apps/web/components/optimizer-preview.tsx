@@ -11,8 +11,9 @@ import {
   RotateCcw,
 } from "lucide-react";
 import Image from "next/image";
-import { useCallback, useRef, useState, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
+import { useCompareSlider } from "@/hooks/use-compare-slider";
 import { isJobPending } from "@/lib/image/job";
 import type { ImageJob } from "@/lib/image/types";
 import { cn } from "@/lib/utils";
@@ -250,77 +251,12 @@ export const OptimizerPreview = ({
   const startPanRef = useRef({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const rafIdRef = useRef<number | null>(null);
-  const [revealSlider, setRevealSlider] = useState<number | null>(null);
+  const dragRectRef = useRef<DOMRect | null>(null);
 
-  const cancelReveal = useCallback(() => {
-    if (rafIdRef.current !== null) {
-      cancelAnimationFrame(rafIdRef.current);
-      rafIdRef.current = null;
-    }
-    setRevealSlider(null);
-  }, []);
-
-  // Latest-ref mirrors so the reveal effect can key off the result URL alone —
-  // depending on `job`/`onSliderChange` would cancel the sweep on every
-  // unrelated context update (their identities change each render).
-  const jobRef = useRef(job);
-  const onSliderChangeRef = useRef(onSliderChange);
-  useEffect(() => {
-    jobRef.current = job;
-    onSliderChangeRef.current = onSliderChange;
-  });
-
-  const resultUrl = job.result?.url ?? null;
-
-  // Reveal sweep when a new result arrives. Explanatory motion: 800ms easeOutQuart.
-  useEffect(() => {
-    if (!resultUrl) {
-      return;
-    }
-
-    // Commit the final value once; the sweep itself stays local.
-    onSliderChangeRef.current(jobRef.current, 50);
-
-    let rafId: number;
-
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      rafId = requestAnimationFrame(() => {
-        rafIdRef.current = null;
-        setRevealSlider(null);
-      });
-    } else {
-      let start: number | null = null;
-      const duration = 800;
-      const targetValue = 50;
-
-      const animate = (timestamp: number) => {
-        if (!start) {
-          start = timestamp;
-        }
-        const progress = Math.min((timestamp - start) / duration, 1);
-        const ease = 1 - (1 - progress) ** 4;
-
-        if (progress < 1) {
-          setRevealSlider(targetValue * ease);
-          rafId = requestAnimationFrame(animate);
-          rafIdRef.current = rafId;
-        } else {
-          setRevealSlider(null);
-          rafIdRef.current = null;
-        }
-      };
-
-      rafId = requestAnimationFrame(animate);
-    }
-
-    rafIdRef.current = rafId;
-
-    return () => {
-      cancelAnimationFrame(rafId);
-      rafIdRef.current = null;
-    };
-  }, [resultUrl]);
+  const { cancelReveal, commitSlider, setSlider, slider } = useCompareSlider(
+    job,
+    onSliderChange
+  );
 
   // Wheel Zoom event listener
   useEffect(() => {
@@ -361,9 +297,12 @@ export const OptimizerPreview = ({
     };
   }, [job.result]);
 
+  // The divider moves the layout every frame, so re-measuring mid-drag would
+  // force a synchronous layout each time. The gesture's rect is captured once.
   const updateFromPointer = useCallback(
     (clientX: number) => {
-      const rect = compareRef.current?.getBoundingClientRect();
+      const rect =
+        dragRectRef.current ?? compareRef.current?.getBoundingClientRect();
       if (!rect) {
         return;
       }
@@ -371,9 +310,9 @@ export const OptimizerPreview = ({
         100,
         Math.max(0, ((clientX - rect.left) / rect.width) * 100)
       );
-      onSliderChange(job, Math.round(value));
+      setSlider(Math.round(value));
     },
-    [job, onSliderChange]
+    [setSlider]
   );
 
   const onComparePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -388,9 +327,11 @@ export const OptimizerPreview = ({
       return;
     }
 
+    dragRectRef.current = rect;
+
     const clickXPercent = ((event.clientX - rect.left) / rect.width) * 100;
     // Check if pointer is within 5% range of divider
-    const isNearDivider = Math.abs(clickXPercent - job.slider) < 5;
+    const isNearDivider = Math.abs(clickXPercent - slider) < 5;
 
     event.currentTarget.setPointerCapture(event.pointerId);
 
@@ -430,11 +371,13 @@ export const OptimizerPreview = ({
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
+    if (isDragging) {
+      commitSlider(slider);
+    }
+    dragRectRef.current = null;
     setIsDragging(false);
     setIsPanning(false);
   };
-
-  const displaySlider = revealSlider ?? job.slider;
 
   // Cursor logic based on zoom and drag state
   return (
@@ -480,7 +423,7 @@ export const OptimizerPreview = ({
         onComparePointerDown={onComparePointerDown}
         onComparePointerMove={onComparePointerMove}
         setTransform={setTransform}
-        sliderValue={displaySlider}
+        sliderValue={slider}
         transform={transform}
       />
 
@@ -488,9 +431,7 @@ export const OptimizerPreview = ({
         <div className="flex shrink-0 flex-col gap-3 rounded-[6px] border border-gray-alpha-400 bg-background-100 p-4 shadow-xs">
           <div className="flex items-center justify-between gap-3">
             <span className="text-label-13 text-gray-900">Original</span>
-            <span className="text-label-13-mono text-gray-1000">
-              {Math.round(displaySlider)}%
-            </span>
+            <span className="text-label-13-mono text-gray-1000">{slider}%</span>
             <span className="text-label-13 text-gray-900">Optimized</span>
           </div>
           <input
@@ -500,11 +441,14 @@ export const OptimizerPreview = ({
             min="0"
             step="1"
             type="range"
-            value={Math.round(displaySlider)}
+            value={slider}
+            onBlur={() => commitSlider(slider)}
             onChange={(event) => {
               cancelReveal();
-              onSliderChange(job, Number(event.target.value));
+              setSlider(Number(event.target.value));
             }}
+            onKeyUp={() => commitSlider(slider)}
+            onPointerUp={() => commitSlider(slider)}
           />
         </div>
       ) : null}

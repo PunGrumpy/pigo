@@ -25,6 +25,7 @@ export const OptimizerPreviewPanel = () => {
       {selectedJob ? (
         <OptimizerPreview
           job={selectedJob}
+          key={selectedJob.id}
           onDownload={downloadJob}
           onRemove={(job) => removeJob(job.id)}
           onSliderChange={(job, value) =>
