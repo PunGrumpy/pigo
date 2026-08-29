@@ -516,6 +516,14 @@
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
     }
+    /*
+     * Loading indicators are the exception that must keep moving: the spin is
+     * the only signal that work is still running, so stopping it would strand
+     * the user. Slow the rotation instead of removing it.
+     */
+    .animate-spin {
+      animation-duration: 2s !important;
+    }
   }
 }
 

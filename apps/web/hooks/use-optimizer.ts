@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { compressWithApi } from "@/lib/compress/api";
 import { compressWithBrowser } from "@/lib/compress/browser";
 import { downloadAll, downloadJob } from "@/lib/compress/download";
+import { MAX_CONCURRENT_JOBS, runWithConcurrency } from "@/lib/compress/pool";
 import {
   DEFAULT_COMPRESSION_OPTIONS,
   sanitizeCompressionOptions,
@@ -14,6 +15,8 @@ import { ingestFiles } from "@/lib/image/ingest";
 import { isJobPending } from "@/lib/image/job";
 import { revokeJobUrls } from "@/lib/image/revoke";
 import type { CompressionOptions, ImageJob } from "@/lib/image/types";
+
+export type FilterTab = "all" | "optimized" | "errors";
 
 export const useOptimizer = () => {
   const jobsRef = useRef<ImageJob[]>([]);
@@ -29,10 +32,6 @@ export const useOptimizer = () => {
   if (generationRef.current === (null as unknown as Map<string, number>)) {
     generationRef.current = new Map();
   }
-  const removedIdsRef = useRef<Set<string>>(null as unknown as Set<string>);
-  if (removedIdsRef.current === (null as unknown as Set<string>)) {
-    removedIdsRef.current = new Set();
-  }
   const [jobs, setJobs] = useState<ImageJob[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [options, setOptions] = useState<CompressionOptions>({
@@ -41,26 +40,21 @@ export const useOptimizer = () => {
   const [optionsDirty, setOptionsDirty] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterTab, setFilterTab] = useState<"all" | "optimized" | "errors">(
-    "all"
-  );
+  const [filterTab, setFilterTab] = useState<FilterTab>("all");
   const [zipGenerating, setZipGenerating] = useState(false);
   const [zipProgress, setZipProgress] = useState(0);
 
-  const filteredJobs = useMemo(
-    () =>
-      jobs.filter((job) => {
-        const matchesSearch = job.name
-          .toLowerCase()
-          .includes(searchQuery.toLowerCase());
-        const matchesTab =
-          filterTab === "all" ||
-          (filterTab === "optimized" && job.status === "done") ||
-          (filterTab === "errors" && job.status === "error");
-        return matchesSearch && matchesTab;
-      }),
-    [jobs, searchQuery, filterTab]
-  );
+  const filteredJobs = useMemo(() => {
+    const needle = searchQuery.toLowerCase();
+    return jobs.filter((job) => {
+      const matchesSearch = job.name.toLowerCase().includes(needle);
+      const matchesTab =
+        filterTab === "all" ||
+        (filterTab === "optimized" && job.status === "done") ||
+        (filterTab === "errors" && job.status === "error");
+      return matchesSearch && matchesTab;
+    });
+  }, [jobs, searchQuery, filterTab]);
 
   useEffect(() => {
     jobsRef.current = jobs;
@@ -89,14 +83,14 @@ export const useOptimizer = () => {
   );
 
   const completedJobs = useMemo(() => jobs.filter((job) => job.result), [jobs]);
-  const isProcessing = jobs.some(isJobPending);
-  const totalOriginal = completedJobs.reduce(
-    (sum, job) => sum + job.originalSize,
-    0
+  const isProcessing = useMemo(() => jobs.some(isJobPending), [jobs]);
+  const totalOriginal = useMemo(
+    () => completedJobs.reduce((sum, job) => sum + job.originalSize, 0),
+    [completedJobs]
   );
-  const totalCompressed = completedJobs.reduce(
-    (sum, job) => sum + (job.result?.size ?? 0),
-    0
+  const totalCompressed = useMemo(
+    () => completedJobs.reduce((sum, job) => sum + (job.result?.size ?? 0), 0),
+    [completedJobs]
   );
   const processedCount = useMemo(
     () =>
@@ -125,16 +119,26 @@ export const useOptimizer = () => {
     return nextGeneration;
   }, []);
 
-  const isJobRunStale = useCallback((id: string, generation: number) => {
-    if (removedIdsRef.current.has(id)) {
-      return true;
-    }
-    return generationRef.current.get(id) !== generation;
-  }, []);
+  // Removal deletes the job's generation entry outright, so a dropped job reads
+  // as stale here for the same reason a superseded one does.
+  const isJobRunStale = useCallback(
+    (id: string, generation: number) =>
+      generationRef.current.get(id) !== generation,
+    []
+  );
 
   const runJob = useCallback(
-    async (job: ImageJob, nextOptions: CompressionOptions) => {
-      const generation = invalidateJob(job.id);
+    async (
+      job: ImageJob,
+      nextOptions: CompressionOptions,
+      generation: number
+    ) => {
+      // Jobs wait their turn in the pool, so a newer batch may have superseded
+      // this one before it ever started. Skip the work rather than race it.
+      if (isJobRunStale(job.id, generation)) {
+        return;
+      }
+
       const resolvedOptions = sanitizeCompressionOptions(nextOptions);
 
       const prior = jobsRef.current.find((entry) => entry.id === job.id);
@@ -159,7 +163,6 @@ export const useOptimizer = () => {
 
         if (isJobRunStale(job.id, generation)) {
           URL.revokeObjectURL(result.url);
-          removedIdsRef.current.delete(job.id);
           return;
         }
 
@@ -171,7 +174,6 @@ export const useOptimizer = () => {
         }));
       } catch (error) {
         if (isJobRunStale(job.id, generation)) {
-          removedIdsRef.current.delete(job.id);
           return;
         }
 
@@ -182,7 +184,29 @@ export const useOptimizer = () => {
         }));
       }
     },
-    [invalidateJob, isJobRunStale, updateJob]
+    [isJobRunStale, updateJob]
+  );
+
+  /**
+   * Claims a generation for every job up front, then works through the batch a
+   * few at a time. Claiming first means a later batch supersedes this one
+   * wholesale — jobs still queued here see a stale generation and bail.
+   */
+  const startBatch = useCallback(
+    (batch: readonly ImageJob[], nextOptions: CompressionOptions) => {
+      if (batch.length === 0) {
+        return;
+      }
+
+      const generations = new Map(
+        batch.map((job) => [job.id, invalidateJob(job.id)])
+      );
+
+      void runWithConcurrency(batch, MAX_CONCURRENT_JOBS, (job) =>
+        runJob(job, nextOptions, generations.get(job.id) ?? 0)
+      );
+    },
+    [invalidateJob, runJob]
   );
 
   const addFiles = useCallback(
@@ -202,11 +226,9 @@ export const useOptimizer = () => {
 
       setJobs((current) => [...current, ...nextJobs]);
       setSelectedId((current) => current ?? nextJobs[0]?.id ?? null);
-      for (const job of nextJobs) {
-        void runJob(job, optionsRef.current);
-      }
+      startBatch(nextJobs, optionsRef.current);
     },
-    [runJob]
+    [startBatch]
   );
 
   useEffect(() => {
@@ -237,10 +259,8 @@ export const useOptimizer = () => {
     optionsRef.current = resolved;
     clearQualityTimer();
     setOptionsDirty(false);
-    for (const job of jobsRef.current) {
-      void runJob(job, resolved);
-    }
-  }, [clearQualityTimer, runJob]);
+    startBatch(jobsRef.current, resolved);
+  }, [clearQualityTimer, startBatch]);
 
   const scheduleQualityApply = useCallback(() => {
     clearQualityTimer();
@@ -271,31 +291,23 @@ export const useOptimizer = () => {
     [applyOptions, scheduleQualityApply]
   );
 
-  const removeJob = useCallback(
-    (id: string) => {
-      removedIdsRef.current.add(id);
-      invalidateJob(id);
+  const removeJob = useCallback((id: string) => {
+    const removed = jobsRef.current.find((job) => job.id === id);
+    if (removed) {
+      revokeJobUrls(removed);
+    }
 
-      const removed = jobsRef.current.find((job) => job.id === id);
-      if (removed) {
-        revokeJobUrls(removed);
-      }
+    const remaining = jobsRef.current.filter((job) => job.id !== id);
+    setJobs(remaining);
+    setSelectedId((currentSelected) =>
+      currentSelected === id ? (remaining[0]?.id ?? null) : currentSelected
+    );
 
-      const remaining = jobsRef.current.filter((job) => job.id !== id);
-      setJobs(remaining);
-      setSelectedId((currentSelected) =>
-        currentSelected === id ? (remaining[0]?.id ?? null) : currentSelected
-      );
-
-      generationRef.current.delete(id);
-    },
-    [invalidateJob]
-  );
+    generationRef.current.delete(id);
+  }, []);
 
   const clearAll = useCallback(() => {
     for (const job of jobsRef.current) {
-      removedIdsRef.current.add(job.id);
-      invalidateJob(job.id);
       revokeJobUrls(job);
     }
 
@@ -304,7 +316,7 @@ export const useOptimizer = () => {
     setOptionsDirty(false);
     setNotice(null);
     generationRef.current.clear();
-  }, [invalidateJob]);
+  }, []);
 
   const handleDownloadAll = useCallback(async () => {
     setZipGenerating(true);
@@ -319,34 +331,77 @@ export const useOptimizer = () => {
     }
   }, []);
 
-  return {
-    addFiles,
-    applyOptions,
-    clearAll,
-    completedJobs,
-    downloadAll: handleDownloadAll,
-    downloadJob,
-    filterTab,
-    filteredJobs,
-    isProcessing,
-    jobs,
-    notice,
-    options,
-    optionsDirty,
-    patchOptions,
-    processPercent,
-    processedCount,
-    removeJob,
-    searchQuery,
-    selectedId,
-    selectedJob,
-    setFilterTab,
-    setSearchQuery,
-    setSelectedId,
-    totalCompressed,
-    totalOriginal,
-    updateJob,
-    zipGenerating,
-    zipProgress,
-  };
+  // Split so that consumers which only dispatch (queue rows, buttons) can
+  // subscribe to a value that never changes identity, while the reactive slice
+  // re-renders only the components that actually read it.
+  const actions = useMemo(
+    () => ({
+      addFiles,
+      applyOptions,
+      clearAll,
+      downloadAll: handleDownloadAll,
+      downloadJob,
+      patchOptions,
+      removeJob,
+      setFilterTab,
+      setSearchQuery,
+      setSelectedId,
+      updateJob,
+    }),
+    [
+      addFiles,
+      applyOptions,
+      clearAll,
+      handleDownloadAll,
+      patchOptions,
+      removeJob,
+      updateJob,
+    ]
+  );
+
+  const state = useMemo(
+    () => ({
+      completedJobs,
+      filterTab,
+      filteredJobs,
+      isProcessing,
+      jobs,
+      notice,
+      options,
+      optionsDirty,
+      processPercent,
+      processedCount,
+      searchQuery,
+      selectedId,
+      selectedJob,
+      totalCompressed,
+      totalOriginal,
+      zipGenerating,
+      zipProgress,
+    }),
+    [
+      completedJobs,
+      filterTab,
+      filteredJobs,
+      isProcessing,
+      jobs,
+      notice,
+      options,
+      optionsDirty,
+      processPercent,
+      processedCount,
+      searchQuery,
+      selectedId,
+      selectedJob,
+      totalCompressed,
+      totalOriginal,
+      zipGenerating,
+      zipProgress,
+    ]
+  );
+
+  return { actions, state };
 };
+
+export type OptimizerState = ReturnType<typeof useOptimizer>["state"];
+export type OptimizerActions = ReturnType<typeof useOptimizer>["actions"];

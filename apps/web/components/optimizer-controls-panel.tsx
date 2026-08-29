@@ -6,7 +6,10 @@ import { Spinner } from "@vercel/geistdocs/components/spinner";
 import { Download, FileArchive, RefreshCw, Info } from "lucide-react";
 
 import { OptimizerMetadataGrid } from "@/components/optimizer-metadata-grid";
-import { useOptimizerContext } from "@/components/providers/optimizer-provider";
+import {
+  useOptimizerActions,
+  useOptimizerState,
+} from "@/components/providers/optimizer-provider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MAX_DIMENSION } from "@/lib/image/constants";
 import { formatBytes, formatSavings } from "@/lib/image/format";
@@ -23,12 +26,10 @@ export const OptimizerControlsPanel = () => {
     selectedJob,
     totalCompressed,
     totalOriginal,
-    applyOptions,
-    downloadAll,
-    patchOptions,
     zipGenerating,
     zipProgress,
-  } = useOptimizerContext();
+  } = useOptimizerState();
+  const { applyOptions, downloadAll, patchOptions } = useOptimizerActions();
 
   const completedCount = completedJobs.length;
   const jobCount = jobs.length;
@@ -192,7 +193,7 @@ export const OptimizerControlsPanel = () => {
                       min="1"
                       type="number"
                       className={cn(
-                        "peer h-9 w-full min-w-0 cursor-pointer appearance-none truncate rounded-md border-none bg-background-100 text-label-14 text-gray-1000 shadow-[0_0_0_1px_var(--ds-gray-alpha-400)] outline-none transition-[box-shadow,color] duration-200",
+                        "peer h-9 w-full min-w-0 cursor-pointer appearance-none truncate rounded-md border-none bg-background-100 text-label-14 text-gray-1000 shadow-[0_0_0_1px_var(--ds-gray-alpha-400)] outline-none transition-[box-shadow,color] duration-150",
                         "hover:shadow-[0_0_0_1px_var(--ds-gray-alpha-500)]",
                         "focus:outline-none focus-visible:shadow-[var(--ds-focus-ring)]",
                         "disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-700 disabled:shadow-[0_0_0_1px_var(--ds-gray-alpha-400)]"
@@ -215,7 +216,7 @@ export const OptimizerControlsPanel = () => {
                     <Input
                       id="resize-height"
                       className={cn(
-                        "peer h-9 w-full min-w-0 cursor-pointer appearance-none truncate rounded-md border-none bg-background-100 text-label-14 text-gray-1000 shadow-[0_0_0_1px_var(--ds-gray-alpha-400)] outline-none transition-[box-shadow,color] duration-200",
+                        "peer h-9 w-full min-w-0 cursor-pointer appearance-none truncate rounded-md border-none bg-background-100 text-label-14 text-gray-1000 shadow-[0_0_0_1px_var(--ds-gray-alpha-400)] outline-none transition-[box-shadow,color] duration-150",
                         "hover:shadow-[0_0_0_1px_var(--ds-gray-alpha-500)]",
                         "focus:outline-none focus-visible:shadow-[var(--ds-focus-ring)]",
                         "disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-700 disabled:shadow-[0_0_0_1px_var(--ds-gray-alpha-400)]"

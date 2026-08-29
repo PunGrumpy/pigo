@@ -4,15 +4,18 @@ import { ImageIcon } from "lucide-react";
 
 import { OptimizerPreview } from "@/components/optimizer-preview";
 import { useDragDrop } from "@/components/providers/drag-drop-provider";
-import { useOptimizerContext } from "@/components/providers/optimizer-provider";
+import {
+  useOptimizerActions,
+  useOptimizerState,
+} from "@/components/providers/optimizer-provider";
 import { MAX_FILE_SIZE } from "@/lib/image/constants";
 import { formatBytes } from "@/lib/image/format";
 import { cn } from "@/lib/utils";
 
 export const OptimizerPreviewPanel = () => {
   const { dropActive } = useDragDrop();
-  const { selectedJob, downloadJob, removeJob, updateJob } =
-    useOptimizerContext();
+  const { selectedJob } = useOptimizerState();
+  const { downloadJob, removeJob, updateJob } = useOptimizerActions();
 
   return (
     <section
@@ -22,6 +25,7 @@ export const OptimizerPreviewPanel = () => {
       {selectedJob ? (
         <OptimizerPreview
           job={selectedJob}
+          key={selectedJob.id}
           onDownload={downloadJob}
           onRemove={(job) => removeJob(job.id)}
           onSliderChange={(job, value) =>
@@ -31,7 +35,7 @@ export const OptimizerPreviewPanel = () => {
       ) : (
         <div
           className={cn(
-            "flex flex-1 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-gray-alpha-400 bg-background-100 px-4 py-12 text-center shadow-2xs transition-colors",
+            "flex flex-1 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-gray-alpha-400 bg-background-100 px-4 py-12 text-center shadow-2xs transition-colors duration-150",
             dropActive && "border-blue-700 bg-blue-100/50"
           )}
         >

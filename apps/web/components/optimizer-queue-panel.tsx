@@ -7,20 +7,23 @@ import { Trash2, Upload, AlertCircle } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { OptimizerQueueItem } from "@/components/optimizer-queue-item";
 import { useDragDrop } from "@/components/providers/drag-drop-provider";
-import { useOptimizerContext } from "@/components/providers/optimizer-provider";
+import {
+  useOptimizerActions,
+  useOptimizerState,
+} from "@/components/providers/optimizer-provider";
 import { Status } from "@/components/status";
 import { cn } from "@/lib/utils";
 
 import { Social } from "./social";
 
 const QueueContent = () => {
-  const { jobs, filteredJobs, selectedId, setSelectedId, openFilePicker } =
-    useOptimizerContext();
+  const { jobs, filteredJobs, options, selectedId } = useOptimizerState();
+  const { openFilePicker, setSelectedId } = useOptimizerActions();
 
   if (jobs.length === 0) {
     return (
       <button
-        className="flex min-h-[16rem] w-full flex-col items-center justify-center gap-3 rounded-[6px] border border-dashed border-gray-alpha-400 bg-background-100 p-4 text-center hover:bg-gray-alpha-100 transition-colors"
+        className="flex min-h-[16rem] w-full flex-col items-center justify-center gap-3 rounded-[6px] border border-dashed border-gray-alpha-400 bg-background-100 p-4 text-center hover:bg-gray-alpha-100 transition-colors duration-150"
         type="button"
         onClick={openFilePicker}
       >
@@ -55,7 +58,12 @@ const QueueContent = () => {
           job={job}
           key={job.id}
           selected={selectedId === job.id}
-          onSelect={() => setSelectedId(job.id)}
+          targetFormat={
+            options.outputFormat === "same"
+              ? job.inputFormat
+              : options.outputFormat
+          }
+          onSelect={setSelectedId}
         />
       ))}
     </div>
@@ -68,18 +76,17 @@ export const OptimizerQueuePanel = () => {
     isProcessing,
     filteredJobs,
     notice,
-    openFilePicker,
-    clearAll,
     jobs,
     processPercent,
     processedCount,
-  } = useOptimizerContext();
+  } = useOptimizerState();
+  const { clearAll, openFilePicker } = useOptimizerActions();
 
   return (
     <aside
       aria-label="Image optimizer sidebar"
       className={cn(
-        "flex w-full flex-col border-b border-gray-alpha-400 bg-background-200 transition-colors lg:h-full lg:w-72 lg:shrink-0 lg:border-b-0 lg:border-r",
+        "flex w-full flex-col border-b border-gray-alpha-400 bg-background-200 transition-colors duration-150 lg:h-full lg:w-72 lg:shrink-0 lg:border-b-0 lg:border-r",
         dropActive && "bg-blue-100/30"
       )}
     >

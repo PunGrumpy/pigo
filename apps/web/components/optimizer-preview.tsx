@@ -11,11 +11,20 @@ import {
   RotateCcw,
 } from "lucide-react";
 import Image from "next/image";
-import { useCallback, useRef, useState, useEffect } from "react";
+import { memo, useCallback, useRef, useState } from "react";
 
+import { useCompareSlider } from "@/hooks/use-compare-slider";
+import type { Transform } from "@/hooks/use-image-transform";
+import {
+  MAX_ZOOM,
+  MIN_ZOOM,
+  useImageTransform,
+} from "@/hooks/use-image-transform";
 import { isJobPending } from "@/lib/image/job";
 import type { ImageJob } from "@/lib/image/types";
 import { cn } from "@/lib/utils";
+
+const DIVIDER_GRAB_PERCENT = 5;
 
 interface OptimizerPreviewProps {
   job: ImageJob;
@@ -26,12 +35,17 @@ interface OptimizerPreviewProps {
 
 interface ZoomControlsProps {
   zoom: number;
-  setTransform: React.Dispatch<
-    React.SetStateAction<{ zoom: number; pan: { x: number; y: number } }>
-  >;
+  onReset: () => void;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
 }
 
-const ZoomControls = ({ zoom, setTransform }: ZoomControlsProps) => (
+const ZoomControlsImpl = ({
+  zoom,
+  onReset,
+  onZoomIn,
+  onZoomOut,
+}: ZoomControlsProps) => (
   <div
     className="absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1 rounded-full border border-gray-alpha-300 bg-background-100/90 px-2 py-1 shadow-sm backdrop-blur-md"
     onPointerCancel={(e) => e.stopPropagation()}
@@ -43,16 +57,8 @@ const ZoomControls = ({ zoom, setTransform }: ZoomControlsProps) => (
       size="icon-sm"
       variant="ghost"
       className="rounded-full"
-      disabled={zoom <= 1}
-      onClick={() => {
-        setTransform((prev) => {
-          const next = Math.max(1, prev.zoom / 1.5);
-          return {
-            pan: next === 1 ? { x: 0, y: 0 } : prev.pan,
-            zoom: next,
-          };
-        });
-      }}
+      disabled={zoom <= MIN_ZOOM}
+      onClick={onZoomOut}
     >
       <ZoomOut className="size-3 text-gray-800" />
     </Button>
@@ -63,33 +69,26 @@ const ZoomControls = ({ zoom, setTransform }: ZoomControlsProps) => (
       size="icon-sm"
       variant="ghost"
       className="rounded-full"
-      disabled={zoom >= 8}
-      onClick={() => {
-        setTransform((prev) => ({
-          ...prev,
-          zoom: Math.min(8, prev.zoom * 1.5),
-        }));
-      }}
+      disabled={zoom >= MAX_ZOOM}
+      onClick={onZoomIn}
     >
       <ZoomIn className="size-3 text-gray-800" />
     </Button>
     <div
       className={cn(
         "grid transition-[grid-template-columns] duration-150 ease-out",
-        zoom > 1 ? "grid-cols-[1fr]" : "grid-cols-[0fr]"
+        zoom > MIN_ZOOM ? "grid-cols-[1fr]" : "grid-cols-[0fr]"
       )}
     >
-      <div className="min-w-0 overflow-hidden" inert={zoom <= 1}>
+      <div className="min-w-0 overflow-hidden" inert={zoom <= MIN_ZOOM}>
         <Button
           className={cn(
             "ml-1 flex h-8 cursor-pointer items-center gap-1 whitespace-nowrap rounded-full px-2 text-[11px] transition-opacity duration-150 ease-out",
-            zoom > 1 ? "opacity-100" : "opacity-0"
+            zoom > MIN_ZOOM ? "opacity-100" : "opacity-0"
           )}
           size="sm"
           variant="ghost"
-          onClick={() => {
-            setTransform({ pan: { x: 0, y: 0 }, zoom: 1 });
-          }}
+          onClick={onReset}
         >
           <RotateCcw className="size-3 text-gray-800" />
           Reset
@@ -99,19 +98,21 @@ const ZoomControls = ({ zoom, setTransform }: ZoomControlsProps) => (
   </div>
 );
 
+const ZoomControls = memo(ZoomControlsImpl);
+
 interface ComparisonViewportProps {
   compareRef: React.RefObject<HTMLDivElement | null>;
   job: ImageJob;
   sliderValue: number;
-  transform: { zoom: number; pan: { x: number; y: number } };
-  setTransform: React.Dispatch<
-    React.SetStateAction<{ zoom: number; pan: { x: number; y: number } }>
-  >;
+  transform: Transform;
   isPanning: boolean;
   isDragging: boolean;
   onComparePointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
   onComparePointerMove: (event: React.PointerEvent<HTMLDivElement>) => void;
   endCompareDrag: (event: React.PointerEvent<HTMLDivElement>) => void;
+  onReset: () => void;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
 }
 
 const ComparisonViewport = ({
@@ -119,125 +120,136 @@ const ComparisonViewport = ({
   job,
   sliderValue,
   transform,
-  setTransform,
   isPanning,
   isDragging,
   onComparePointerDown,
   onComparePointerMove,
   endCompareDrag,
-}: ComparisonViewportProps) => (
-  <div
-    ref={compareRef}
-    className={cn(
-      "relative flex min-h-[50vh] touch-none items-center justify-center overflow-hidden rounded-[6px] bg-gray-100 select-none lg:min-h-0 lg:flex-1",
-      job.result && transform.zoom > 1 && isPanning && "cursor-grabbing",
-      job.result && transform.zoom > 1 && !isPanning && "cursor-grab",
-      job.result && transform.zoom <= 1 && "cursor-ew-resize"
-    )}
-    onPointerCancel={endCompareDrag}
-    onPointerDown={onComparePointerDown}
-    onPointerMove={onComparePointerMove}
-    onPointerUp={endCompareDrag}
-  >
-    <Image
-      alt={`Original ${job.name}`}
+  onReset,
+  onZoomIn,
+  onZoomOut,
+}: ComparisonViewportProps) => {
+  const imageTransform = {
+    transform: `translate(${transform.pan.x}px, ${transform.pan.y}px) scale(${transform.zoom})`,
+    transformOrigin: "center",
+  };
+  const imageClassName = cn(
+    "max-h-full max-w-full object-contain",
+    transform.animate &&
+      !isPanning &&
+      !isDragging &&
+      "transition-transform duration-300 ease-out"
+  );
+
+  return (
+    <div
+      ref={compareRef}
       className={cn(
-        "max-h-full max-w-full object-contain",
-        !isPanning &&
-          !isDragging &&
-          "transition-transform duration-300 ease-out"
+        "group relative flex min-h-[50vh] touch-none items-center justify-center overflow-hidden rounded-[6px] bg-gray-100 select-none lg:min-h-0 lg:flex-1",
+        job.result &&
+          transform.zoom > MIN_ZOOM &&
+          isPanning &&
+          "cursor-grabbing",
+        job.result && transform.zoom > MIN_ZOOM && !isPanning && "cursor-grab",
+        job.result && transform.zoom <= MIN_ZOOM && "cursor-ew-resize"
       )}
-      draggable={false}
-      height={job.height}
-      src={job.originalUrl}
-      style={{
-        transform: `translate(${transform.pan.x}px, ${transform.pan.y}px) scale(${transform.zoom})`,
-        transformOrigin: "center",
-      }}
-      unoptimized
-      width={job.width}
-    />
-    {job.result ? (
-      <>
-        <div
-          className="pointer-events-none absolute inset-0 flex items-center justify-center"
-          style={{ clipPath: `inset(0 ${100 - sliderValue}% 0 0)` }}
-        >
-          <Image
-            alt={`Optimized ${job.name}`}
+      onPointerCancel={endCompareDrag}
+      onPointerDown={onComparePointerDown}
+      onPointerMove={onComparePointerMove}
+      onPointerUp={endCompareDrag}
+    >
+      <Image
+        alt={`Original ${job.name}`}
+        className={imageClassName}
+        draggable={false}
+        height={job.height}
+        src={job.originalUrl}
+        style={imageTransform}
+        unoptimized
+        width={job.width}
+      />
+      {job.result ? (
+        <>
+          <div
+            className="pointer-events-none absolute inset-0 flex items-center justify-center"
+            style={{ clipPath: `inset(0 ${100 - sliderValue}% 0 0)` }}
+          >
+            <Image
+              alt={`Optimized ${job.name}`}
+              className={imageClassName}
+              draggable={false}
+              height={job.result.height}
+              src={job.result.url}
+              style={imageTransform}
+              unoptimized
+              width={job.result.width}
+            />
+          </div>
+
+          <div
+            aria-hidden="true"
             className={cn(
-              "max-h-full max-w-full object-contain",
-              !isPanning &&
-                !isDragging &&
-                "transition-transform duration-300 ease-out"
+              "pointer-events-none absolute inset-y-0 z-10 w-px -translate-x-1/2 bg-background-100 ring-1",
+              isDragging
+                ? "ring-blue-600 shadow-[0_0_8px_rgba(0,112,243,0.3)]"
+                : "ring-gray-alpha-400"
             )}
-            draggable={false}
-            height={job.result.height}
-            src={job.result.url}
-            style={{
-              transform: `translate(${transform.pan.x}px, ${transform.pan.y}px) scale(${transform.zoom})`,
-              transformOrigin: "center",
-            }}
-            unoptimized
-            width={job.result.width}
+            style={{ left: `${sliderValue}%` }}
           />
+
+          {/*
+            The handle never takes pointer events — the whole viewport is the
+            drag surface — so its approach cue keys off hovering the viewport.
+          */}
+          <div
+            aria-hidden="true"
+            className={cn(
+              "pointer-events-none absolute top-1/2 z-20 flex size-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border bg-background-100 shadow-sm transition-[transform,border-color,box-shadow] duration-150 ease-out",
+              isDragging
+                ? "scale-110 border-blue-600 text-blue-600 shadow-[0_0_12px_rgba(0,112,243,0.2)]"
+                : "border-gray-alpha-400 text-gray-1000 group-hover:scale-105 group-hover:border-gray-alpha-500"
+            )}
+            style={{ left: `${sliderValue}%` }}
+          >
+            <ChevronsLeftRight className="size-4" strokeWidth={2} />
+          </div>
+
+          <span className="pointer-events-none absolute top-3 left-3 z-20 hidden rounded-[6px] border border-gray-alpha-400 bg-background-100 px-2 py-1 text-label-12 text-gray-1000 shadow-xs sm:inline">
+            Original
+          </span>
+          <span className="pointer-events-none absolute top-3 right-3 z-20 hidden rounded-[6px] border border-gray-alpha-400 bg-background-100 px-2 py-1 text-label-12 text-gray-1000 shadow-xs sm:inline">
+            Optimized
+          </span>
+
+          <ZoomControls
+            zoom={transform.zoom}
+            onReset={onReset}
+            onZoomIn={onZoomIn}
+            onZoomOut={onZoomOut}
+          />
+        </>
+      ) : null}
+
+      {isJobPending(job) ? (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gray-alpha-100 z-20">
+          <Spinner
+            aria-label="Processing"
+            className="size-[22px] text-gray-900"
+          />
+          <span className="text-label-14 text-gray-900">Processing…</span>
         </div>
+      ) : null}
 
-        <div
-          aria-hidden="true"
-          className={cn(
-            "pointer-events-none absolute inset-y-0 z-10 w-px -translate-x-1/2 bg-background-100 ring-1",
-            isDragging
-              ? "ring-blue-600 shadow-[0_0_8px_rgba(0,112,243,0.3)]"
-              : "ring-gray-alpha-400"
-          )}
-          style={{ left: `${sliderValue}%` }}
-        />
-
-        <div
-          aria-hidden="true"
-          className={cn(
-            "pointer-events-none absolute top-1/2 z-20 flex size-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border bg-background-100 shadow-sm transition-[transform,border-color,box-shadow] duration-150 ease-out",
-            isDragging
-              ? "scale-110 border-blue-600 text-blue-600 shadow-[0_0_12px_rgba(0,112,243,0.2)]"
-              : "border-gray-alpha-400 text-gray-1000 hover:scale-105 hover:border-gray-alpha-500"
-          )}
-          style={{ left: `${sliderValue}%` }}
-        >
-          <ChevronsLeftRight className="size-4" strokeWidth={2} />
+      {job.status === "error" ? (
+        <div className="absolute inset-0 flex items-center justify-center bg-red-100/90 px-4">
+          <span className="text-center text-copy-14 text-red-800">
+            {job.error ?? "Compression failed"}
+          </span>
         </div>
-
-        <span className="pointer-events-none absolute top-3 left-3 z-20 hidden rounded-[6px] border border-gray-alpha-400 bg-background-100 px-2 py-1 text-label-12 text-gray-1000 shadow-xs sm:inline">
-          Original
-        </span>
-        <span className="pointer-events-none absolute top-3 right-3 z-20 hidden rounded-[6px] border border-gray-alpha-400 bg-background-100 px-2 py-1 text-label-12 text-gray-1000 shadow-xs sm:inline">
-          Optimized
-        </span>
-
-        {/* Zoom Control Panel */}
-        <ZoomControls zoom={transform.zoom} setTransform={setTransform} />
-      </>
-    ) : null}
-
-    {isJobPending(job) ? (
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gray-alpha-100 z-20">
-        <Spinner
-          aria-label="Processing"
-          className="size-[22px] text-gray-900"
-        />
-        <span className="text-label-14 text-gray-900">Processing…</span>
-      </div>
-    ) : null}
-
-    {job.status === "error" ? (
-      <div className="absolute inset-0 flex items-center justify-center bg-red-100/90 px-4">
-        <span className="text-center text-copy-14 text-red-800">
-          {job.error ?? "Compression failed"}
-        </span>
-      </div>
-    ) : null}
-  </div>
-);
+      ) : null}
+    </div>
+  );
+};
 
 export const OptimizerPreview = ({
   job,
@@ -246,124 +258,31 @@ export const OptimizerPreview = ({
   onSliderChange,
 }: OptimizerPreviewProps) => {
   const compareRef = useRef<HTMLDivElement>(null);
-  const [transform, setTransform] = useState({ pan: { x: 0, y: 0 }, zoom: 1 });
-  const startPanRef = useRef({ x: 0, y: 0 });
-  const [isPanning, setIsPanning] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const rafIdRef = useRef<number | null>(null);
-  const [revealSlider, setRevealSlider] = useState<number | null>(null);
+  const dragRectRef = useRef<DOMRect | null>(null);
 
-  const cancelReveal = useCallback(() => {
-    if (rafIdRef.current !== null) {
-      cancelAnimationFrame(rafIdRef.current);
-      rafIdRef.current = null;
-    }
-    setRevealSlider(null);
-  }, []);
+  const hasResult = job.result !== undefined;
+  const {
+    beginPan,
+    endPan,
+    isPanning,
+    movePan,
+    reset,
+    transform,
+    zoomIn,
+    zoomOut,
+  } = useImageTransform(compareRef, hasResult);
+  const { cancelReveal, commitSlider, setSlider, slider } = useCompareSlider(
+    job,
+    onSliderChange
+  );
 
-  // Latest-ref mirrors so the reveal effect can key off the result URL alone —
-  // depending on `job`/`onSliderChange` would cancel the sweep on every
-  // unrelated context update (their identities change each render).
-  const jobRef = useRef(job);
-  const onSliderChangeRef = useRef(onSliderChange);
-  useEffect(() => {
-    jobRef.current = job;
-    onSliderChangeRef.current = onSliderChange;
-  });
-
-  const resultUrl = job.result?.url ?? null;
-
-  // Reveal sweep when a new result arrives. Explanatory motion: 800ms easeOutQuart.
-  useEffect(() => {
-    if (!resultUrl) {
-      return;
-    }
-
-    // Commit the final value once; the sweep itself stays local.
-    onSliderChangeRef.current(jobRef.current, 50);
-
-    let rafId: number;
-
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      rafId = requestAnimationFrame(() => {
-        rafIdRef.current = null;
-        setRevealSlider(null);
-      });
-    } else {
-      let start: number | null = null;
-      const duration = 800;
-      const targetValue = 50;
-
-      const animate = (timestamp: number) => {
-        if (!start) {
-          start = timestamp;
-        }
-        const progress = Math.min((timestamp - start) / duration, 1);
-        const ease = 1 - (1 - progress) ** 4;
-
-        if (progress < 1) {
-          setRevealSlider(targetValue * ease);
-          rafId = requestAnimationFrame(animate);
-          rafIdRef.current = rafId;
-        } else {
-          setRevealSlider(null);
-          rafIdRef.current = null;
-        }
-      };
-
-      rafId = requestAnimationFrame(animate);
-    }
-
-    rafIdRef.current = rafId;
-
-    return () => {
-      cancelAnimationFrame(rafId);
-      rafIdRef.current = null;
-    };
-  }, [resultUrl]);
-
-  // Wheel Zoom event listener
-  useEffect(() => {
-    const el = compareRef.current;
-    if (!el) {
-      return;
-    }
-
-    const handleWheel = (e: WheelEvent) => {
-      if (!job.result) {
-        return;
-      }
-      e.preventDefault();
-
-      const zoomFactor = 1.15;
-      setTransform((prev) => {
-        const nextZoom =
-          e.deltaY < 0
-            ? Math.min(8, prev.zoom * zoomFactor)
-            : Math.max(1, prev.zoom / zoomFactor);
-
-        return {
-          pan:
-            nextZoom === 1
-              ? { x: 0, y: 0 }
-              : {
-                  x: prev.pan.x * (nextZoom / prev.zoom),
-                  y: prev.pan.y * (nextZoom / prev.zoom),
-                },
-          zoom: nextZoom,
-        };
-      });
-    };
-
-    el.addEventListener("wheel", handleWheel, { passive: false });
-    return () => {
-      el.removeEventListener("wheel", handleWheel);
-    };
-  }, [job.result]);
-
+  // The divider moves the layout every frame, so re-measuring mid-drag would
+  // force a synchronous layout each time. The gesture's rect is captured once.
   const updateFromPointer = useCallback(
     (clientX: number) => {
-      const rect = compareRef.current?.getBoundingClientRect();
+      const rect =
+        dragRectRef.current ?? compareRef.current?.getBoundingClientRect();
       if (!rect) {
         return;
       }
@@ -371,14 +290,14 @@ export const OptimizerPreview = ({
         100,
         Math.max(0, ((clientX - rect.left) / rect.width) * 100)
       );
-      onSliderChange(job, Math.round(value));
+      setSlider(Math.round(value));
     },
-    [job, onSliderChange]
+    [setSlider]
   );
 
   const onComparePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     cancelReveal();
-    if (!job.result) {
+    if (!hasResult) {
       return;
     }
     event.preventDefault();
@@ -387,19 +306,16 @@ export const OptimizerPreview = ({
     if (!rect) {
       return;
     }
+    dragRectRef.current = rect;
 
     const clickXPercent = ((event.clientX - rect.left) / rect.width) * 100;
-    // Check if pointer is within 5% range of divider
-    const isNearDivider = Math.abs(clickXPercent - job.slider) < 5;
+    const isNearDivider =
+      Math.abs(clickXPercent - slider) < DIVIDER_GRAB_PERCENT;
 
     event.currentTarget.setPointerCapture(event.pointerId);
 
-    if (transform.zoom > 1 && !isNearDivider) {
-      setIsPanning(true);
-      startPanRef.current = {
-        x: event.clientX - transform.pan.x,
-        y: event.clientY - transform.pan.y,
-      };
+    if (transform.zoom > MIN_ZOOM && !isNearDivider) {
+      beginPan(event.clientX, event.clientY);
     } else {
       setIsDragging(true);
       updateFromPointer(event.clientX);
@@ -409,20 +325,10 @@ export const OptimizerPreview = ({
   const onComparePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
     if (isDragging) {
       updateFromPointer(event.clientX);
-    } else if (isPanning) {
-      const nextX = event.clientX - startPanRef.current.x;
-      const nextY = event.clientY - startPanRef.current.y;
-
-      const maxPanX = (transform.zoom - 1) * 400;
-      const maxPanY = (transform.zoom - 1) * 400;
-
-      setTransform((prev) => ({
-        ...prev,
-        pan: {
-          x: Math.min(maxPanX, Math.max(-maxPanX, nextX)),
-          y: Math.min(maxPanY, Math.max(-maxPanY, nextY)),
-        },
-      }));
+      return;
+    }
+    if (isPanning) {
+      movePan(event.clientX, event.clientY);
     }
   };
 
@@ -430,13 +336,14 @@ export const OptimizerPreview = ({
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
+    if (isDragging) {
+      commitSlider(slider);
+    }
+    dragRectRef.current = null;
     setIsDragging(false);
-    setIsPanning(false);
+    endPan();
   };
 
-  const displaySlider = revealSlider ?? job.slider;
-
-  // Cursor logic based on zoom and drag state
   return (
     <div className="flex flex-col gap-4 lg:min-h-0 lg:flex-1">
       <div className="flex shrink-0 items-start justify-between gap-4">
@@ -479,8 +386,10 @@ export const OptimizerPreview = ({
         job={job}
         onComparePointerDown={onComparePointerDown}
         onComparePointerMove={onComparePointerMove}
-        setTransform={setTransform}
-        sliderValue={displaySlider}
+        onReset={reset}
+        onZoomIn={zoomIn}
+        onZoomOut={zoomOut}
+        sliderValue={slider}
         transform={transform}
       />
 
@@ -488,9 +397,7 @@ export const OptimizerPreview = ({
         <div className="flex shrink-0 flex-col gap-3 rounded-[6px] border border-gray-alpha-400 bg-background-100 p-4 shadow-xs">
           <div className="flex items-center justify-between gap-3">
             <span className="text-label-13 text-gray-900">Original</span>
-            <span className="text-label-13-mono text-gray-1000">
-              {Math.round(displaySlider)}%
-            </span>
+            <span className="text-label-13-mono text-gray-1000">{slider}%</span>
             <span className="text-label-13 text-gray-900">Optimized</span>
           </div>
           <input
@@ -500,11 +407,14 @@ export const OptimizerPreview = ({
             min="0"
             step="1"
             type="range"
-            value={Math.round(displaySlider)}
+            value={slider}
+            onBlur={() => commitSlider(slider)}
             onChange={(event) => {
               cancelReveal();
-              onSliderChange(job, Number(event.target.value));
+              setSlider(Number(event.target.value));
             }}
+            onKeyUp={() => commitSlider(slider)}
+            onPointerUp={() => commitSlider(slider)}
           />
         </div>
       ) : null}

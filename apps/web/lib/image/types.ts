@@ -40,6 +40,8 @@ export interface ImageJob {
   name: string;
   inputFormat: ImageFormat;
   originalUrl: string;
+  // Small standalone decode for the queue rows; null when encoding failed.
+  thumbnailUrl: string | null;
   originalSize: number;
   width: number;
   height: number;

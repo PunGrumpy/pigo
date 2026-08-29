@@ -11,7 +11,7 @@ import {
 } from "react";
 import type { PropsWithChildren } from "react";
 
-import { useOptimizerContext } from "./optimizer-provider";
+import { useOptimizerActions } from "./optimizer-provider";
 
 interface DragDropContextType {
   readonly dropActive: boolean;
@@ -48,13 +48,20 @@ const traverseFileTree = async (item: DataTransferItem): Promise<File[]> => {
           dirReader.readEntries(resolve, reject);
         });
 
+      // readEntries yields at most ~100 entries per call, so drain it in a
+      // loop. Concatenating batches recursively would rebuild the whole array
+      // on every step.
       const readAllEntries = async (): Promise<FileSystemEntry[]> => {
-        const batch = await readBatch();
-        if (batch.length === 0) {
-          return [];
+        const entries: FileSystemEntry[] = [];
+        let batch = await readBatch();
+        while (batch.length > 0) {
+          entries.push(...batch);
+          // readEntries is a cursor over one directory: the next batch only
+          // exists once the previous call has returned.
+          // oxlint-disable-next-line no-await-in-loop
+          batch = await readBatch();
         }
-        const nextBatch = await readAllEntries();
-        return [...batch, ...nextBatch];
+        return entries;
       };
 
       const allEntries = await readAllEntries();
@@ -68,7 +75,7 @@ const traverseFileTree = async (item: DataTransferItem): Promise<File[]> => {
 
 export const DragDropProvider = ({ children }: PropsWithChildren) => {
   const [dropActive, setDropActive] = useState(false);
-  const { addFiles } = useOptimizerContext();
+  const { addFiles } = useOptimizerActions();
   const dragCounter = useRef(0);
 
   const handleDragEnter = useCallback((event: DragEvent) => {
