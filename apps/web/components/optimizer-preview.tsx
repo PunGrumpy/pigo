@@ -145,7 +145,7 @@ const ComparisonViewport = ({
     <div
       ref={compareRef}
       className={cn(
-        "relative flex min-h-[50vh] touch-none items-center justify-center overflow-hidden rounded-[6px] bg-gray-100 select-none lg:min-h-0 lg:flex-1",
+        "group relative flex min-h-[50vh] touch-none items-center justify-center overflow-hidden rounded-[6px] bg-gray-100 select-none lg:min-h-0 lg:flex-1",
         job.result &&
           transform.zoom > MIN_ZOOM &&
           isPanning &&
@@ -197,13 +197,17 @@ const ComparisonViewport = ({
             style={{ left: `${sliderValue}%` }}
           />
 
+          {/*
+            The handle never takes pointer events — the whole viewport is the
+            drag surface — so its approach cue keys off hovering the viewport.
+          */}
           <div
             aria-hidden="true"
             className={cn(
               "pointer-events-none absolute top-1/2 z-20 flex size-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border bg-background-100 shadow-sm transition-[transform,border-color,box-shadow] duration-150 ease-out",
               isDragging
                 ? "scale-110 border-blue-600 text-blue-600 shadow-[0_0_12px_rgba(0,112,243,0.2)]"
-                : "border-gray-alpha-400 text-gray-1000 hover:scale-105 hover:border-gray-alpha-500"
+                : "border-gray-alpha-400 text-gray-1000 group-hover:scale-105 group-hover:border-gray-alpha-500"
             )}
             style={{ left: `${sliderValue}%` }}
           >
