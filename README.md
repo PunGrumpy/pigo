@@ -4,35 +4,34 @@
 
 A minimal-dependency, minimal-configuration image optimizer with a Go API backend and a Next.js web frontend.
 
----
-
 ## Features
 
-- **Hybrid Optimization** — Compresses WebP directly in the browser via Canvas APIs, and delegates JPEG/PNG compression and scaling to the Go backend.
-- **Go API Backend** — Fast, low-overhead REST API server written in Go utilizing native codecs and Catmull-Rom interpolation for resizing.
-- **Modern Next.js Frontend** — Beautiful, responsive user interface featuring drag-and-drop uploads, clipboard pasting, bulk downloads, and an interactive comparison slider.
-- **Zero Heavy Runtime Dependencies** — No external C-libraries, GraphicsMagick, or libvips required to compile or run the backend.
-- **Monorepo Ready** — Structured as a Turborepo monorepo powered by Bun for fast builds and workspace package management.
+- **Hybrid optimization**: The browser encodes WebP through the Canvas API, and the Go backend compresses and resizes JPEG and PNG.
+- **Go API backend**: A REST server built on the standard library's JPEG and PNG codecs, with Catmull-Rom interpolation for resizing.
+- **Next.js frontend**: Drag-and-drop uploads, clipboard paste, ZIP downloads, and a before/after comparison slider.
+- **Zero heavy runtime dependencies**: The backend builds and runs without C libraries, GraphicsMagick, or libvips.
+- **Turborepo monorepo**: Bun workspaces handle builds and package management.
 
-## Tech Stack
+## Tech stack
 
 - **Backend**: Go (1.26+), [`chi`](https://github.com/go-chi/chi) router, `golang.org/x/image/draw`
-- **Frontend**: Next.js (16.2+), React 19, Tailwind CSS v4, Lucide Icons, JSZip
+- **Frontend**: Next.js (16.3+), React 19, Tailwind CSS v4, Lucide Icons, JSZip
 - **Tooling**: Bun, Turborepo, [Ultracite](https://github.com/PunGrumpy/ultracite) (Oxlint + Oxfmt), Air (Go hot-reloading)
 
-## Project Structure
+## Project structure
 
 ```text
 pigo/
 ├── apps/
-│   ├── api/            # Go REST API backend (Port 3001)
-│   └── web/            # Next.js web frontend (Port 3000)
+│   ├── api/                 # Go REST API backend (port 3001)
+│   └── web/                 # Next.js web frontend (port 3000)
 ├── packages/
-│   └── typescript-config/ # Shared TypeScript configs
-└── package.json        # Workspace configuration
+│   ├── core/                # Go image decoding, encoding, and resizing
+│   └── typescript-config/   # Shared TypeScript configs
+└── package.json             # Workspace configuration
 ```
 
-## Getting Started
+## Getting started
 
 ### Prerequisites
 
@@ -40,7 +39,7 @@ Make sure you have the following installed:
 
 - [Go](https://go.dev/doc/install) (1.26 or later)
 - [Bun](https://bun.sh) (1.3.14 or later)
-- [Air](https://github.com/air-verse/air) (Optional, for API hot-reloading)
+- [Air](https://github.com/air-verse/air), optional, for API hot-reloading
 
 ### Installation
 
@@ -52,77 +51,79 @@ Make sure you have the following installed:
    ```
 
 2. Install dependencies:
+
    ```bash
    bun install
    ```
 
 ### Development
 
-Run both the Go API backend and the Next.js frontend concurrently:
+Run the Go API backend and the Next.js frontend together:
 
 ```bash
 bun dev
 ```
 
-- **Frontend**: http://localhost:3000
-- **API Backend**: http://localhost:3001
+- **Frontend**: `http://localhost:3000`
+- **API backend**: `http://localhost:3001`
 
-### Formatting and Linting
+### Formatting and linting
 
-This project uses **Ultracite** (Oxlint + Oxfmt) to enforce strict code standards and formatting:
+This project uses Ultracite (Oxlint + Oxfmt) to enforce code standards and formatting.
 
-- Check for code issues:
-  ```bash
-  bun run check
-  ```
-- Automatically fix code formatting and linting issues:
-  ```bash
-  bun run fix
-  ```
+Report every issue without changing files:
 
----
+```bash
+bun run check
+```
 
-## API Specification
+Rewrite files to fix what can be fixed automatically:
+
+```bash
+bun run fix
+```
+
+## API specification
 
 ### POST `/compress`
 
-Optimizes and resizes a JPEG/PNG image.
+Optimizes and resizes a JPEG or PNG image.
 
-- **Content-Type:** `multipart/form-data`
+- **Content-Type**: `multipart/form-data`
 
-#### Request Parameters
+#### Request parameters
 
 | Parameter | Type | Required | Default | Description |
 | :-- | :-- | :-- | :-- | :-- |
-| `file` | File | Yes | - | The image file to optimize (Max size: `20MB`). Supported formats: JPEG, PNG, WebP. |
+| `file` | File | Yes | - | The image file to optimize, up to `20 MB`. Supported formats: JPEG, PNG, WebP. |
 | `quality` | Integer | No | `82` | Target image quality from `1` to `100`. |
 | `outputFormat` | String | No | `"same"` | Target image format: `"same"`, `"jpeg"`, or `"png"`. |
-| `resizeWidth` | Integer | No | - | Target width in pixels (`1`-`16384`). |
-| `resizeHeight` | Integer | No | - | Target height in pixels (`1`-`16384`). |
-| `maintainAspect` | Boolean | No | `true` | Maintain aspect ratio when resizing (`"true"` or `"false"`). |
+| `resizeWidth` | Integer | No | - | Target width in pixels, `1` to `16384`. |
+| `resizeHeight` | Integer | No | - | Target height in pixels, `1` to `16384`. |
+| `maintainAspect` | Boolean | No | `true` | Maintain aspect ratio when resizing, `"true"` or `"false"`. |
 
 #### Notes
 
-- WebP output is produced in the browser, not by the API: a WebP upload with `outputFormat` `"same"` (the default) or `"webp"` returns `400`; convert WebP via the API only to `"jpeg"` or `"png"`.
-- GIF input is not supported and returns `400`.
-- Images are limited to 100 megapixels and 16384 pixels per side.
+- The browser produces WebP output, not the API. A WebP upload with `outputFormat` set to `"same"` (the default) or `"webp"` returns `400`. Convert WebP through the API only to `"jpeg"` or `"png"`.
+- The API rejects GIF input with `400`.
+- The API accepts images up to 100 megapixels and 16384 pixels per side.
 
-#### Response Headers
+#### Response headers
 
-| Header | Type | Description |
-| :-- | :-- | :-- |
-| `X-Original-Size` | Integer | Size of the original image in bytes. |
-| `X-Compressed-Size` | Integer | Size of the optimized image in bytes. |
-| `X-Elapsed-Ms` | Integer | Processing duration in milliseconds. |
-| `X-Output-Format` | String | Format of the output image ("jpeg" or "png"). |
-| `X-Width` | Integer | Resized width of the output image in pixels. |
-| `X-Height` | Integer | Resized height of the output image in pixels. |
+| Header              | Type    | Description                                  |
+| :------------------ | :------ | :------------------------------------------- |
+| `X-Original-Size`   | Integer | Size of the original image in bytes.         |
+| `X-Compressed-Size` | Integer | Size of the optimized image in bytes.        |
+| `X-Elapsed-Ms`      | Integer | Processing duration in milliseconds.         |
+| `X-Output-Format`   | String  | Format of the output image, `jpeg` or `png`. |
+| `X-Width`           | Integer | Width of the output image in pixels.         |
+| `X-Height`          | Integer | Height of the output image in pixels.        |
 
 ### GET `/health`
 
 Returns the health status of the API backend.
 
-**Response:**
+Response:
 
 ```json
 {
