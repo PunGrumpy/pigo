@@ -1,4 +1,4 @@
-import { readDimensions } from "@/lib/compress/browser";
+import { readPreview } from "@/lib/compress/browser";
 import { parseJpegExif } from "@/lib/image/exif";
 import { formatFromMime } from "@/lib/image/format";
 import type { ImageFormat, ImageJob } from "@/lib/image/types";
@@ -47,13 +47,16 @@ const jobFromFile = async (
   inputFormat: ImageFormat
 ): Promise<ImageJob | string> => {
   try {
-    const dimensions = await readDimensions(file);
+    const preview = await readPreview(file);
     const dimensionError = validateDimensions(
-      dimensions.width,
-      dimensions.height,
+      preview.width,
+      preview.height,
       file.name
     );
     if (dimensionError) {
+      if (preview.thumbnailUrl) {
+        URL.revokeObjectURL(preview.thumbnailUrl);
+      }
       return dimensionError;
     }
 
@@ -62,7 +65,7 @@ const jobFromFile = async (
     return {
       exif,
       file,
-      height: dimensions.height,
+      height: preview.height,
       id: crypto.randomUUID(),
       inputFormat,
       name: file.name,
@@ -70,7 +73,8 @@ const jobFromFile = async (
       originalUrl: URL.createObjectURL(file),
       slider: 50,
       status: "queued",
-      width: dimensions.width,
+      thumbnailUrl: preview.thumbnailUrl,
+      width: preview.width,
     };
   } catch {
     return `${file.name} could not be decoded by the browser.`;

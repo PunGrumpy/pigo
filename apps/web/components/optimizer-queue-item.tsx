@@ -40,7 +40,7 @@ export const OptimizerQueueItem = ({
           alt=""
           className="size-full object-cover"
           height={32}
-          src={job.originalUrl}
+          src={job.thumbnailUrl ?? job.originalUrl}
           unoptimized
           width={32}
         />

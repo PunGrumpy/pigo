@@ -4,6 +4,11 @@ import type {
   ImageResult,
 } from "@/lib/image/types";
 
+// Queue rows show the image in a 32px box. Encoding a 64px thumbnail once at
+// ingest keeps the browser from holding a full-resolution decode per row.
+const THUMBNAIL_MAX_EDGE = 64;
+const THUMBNAIL_QUALITY = 0.7;
+
 const clampQuality = (quality: number) => Math.min(1, Math.max(0.01, quality));
 
 const draw2d = (
@@ -68,11 +73,34 @@ const encodeWebp = async (
   });
 };
 
-export const readDimensions = async (file: File) => {
+export interface ImagePreview {
+  width: number;
+  height: number;
+  thumbnailUrl: string | null;
+}
+
+/**
+ * Reads natural dimensions and produces a queue thumbnail from a single decode.
+ * A failed thumbnail is not fatal — the queue falls back to the original blob.
+ */
+export const readPreview = async (file: File): Promise<ImagePreview> => {
   const bitmap = await createImageBitmap(file);
-  const dimensions = { height: bitmap.height, width: bitmap.width };
-  bitmap.close();
-  return dimensions;
+  const { height, width } = bitmap;
+
+  try {
+    const scale = Math.min(1, THUMBNAIL_MAX_EDGE / Math.max(width, height));
+    const blob = await encodeWebp(
+      bitmap,
+      Math.max(1, Math.round(width * scale)),
+      Math.max(1, Math.round(height * scale)),
+      THUMBNAIL_QUALITY
+    );
+    return { height, thumbnailUrl: URL.createObjectURL(blob), width };
+  } catch {
+    return { height, thumbnailUrl: null, width };
+  } finally {
+    bitmap.close();
+  }
 };
 
 export const targetDimensions = (
