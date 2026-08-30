@@ -1,0 +1,36 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/core/**/*.go",
+        "$TURBO_ROOT$/packages/core/go.mod",
+        "$TURBO_ROOT$/packages/core/go.sum",
+        "$TURBO_ROOT$/go.work",
+        "$TURBO_ROOT$/go.work.sum"
+      ]
+    },
+    "test": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/core/**/*.go",
+        "$TURBO_ROOT$/packages/core/go.mod",
+        "$TURBO_ROOT$/packages/core/go.sum",
+        "$TURBO_ROOT$/go.work",
+        "$TURBO_ROOT$/go.work.sum"
+      ]
+    },
+    "typecheck": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/core/**/*.go",
+        "$TURBO_ROOT$/packages/core/go.mod",
+        "$TURBO_ROOT$/packages/core/go.sum",
+        "$TURBO_ROOT$/go.work",
+        "$TURBO_ROOT$/go.work.sum"
+      ]
+    }
+  }
+}

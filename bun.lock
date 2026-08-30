@@ -17,6 +17,9 @@
     },
     "apps/api": {
       "name": "@pigo/api",
+      "dependencies": {
+        "@pigo/core": "workspace:*",
+      },
     },
     "apps/web": {
       "name": "web",
