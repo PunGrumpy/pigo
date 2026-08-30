@@ -59,7 +59,7 @@ describe("runWithConcurrency", () => {
 
   // Characterizes the documented contract: a rejecting task aborts the whole
   // batch rather than being contained per-item. This is not a bug fix target.
-  it("rejects the whole batch when a task rejects", () => {
+  it("rejects the whole batch when a task rejects", async () => {
     const items = [0, 1, 2];
 
     const run = runWithConcurrency(items, 2, async (item) => {
@@ -69,6 +69,6 @@ describe("runWithConcurrency", () => {
       }
     });
 
-    expect(run).rejects.toThrow("task failed");
+    await expect(run).rejects.toThrow("task failed");
   });
 });
