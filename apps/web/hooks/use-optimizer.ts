@@ -18,11 +18,26 @@ import type { CompressionOptions, ImageJob } from "@/lib/image/types";
 
 export type FilterTab = "all" | "optimized" | "errors";
 
+const describeCompressionError = (error: unknown): string => {
+  if (error instanceof DOMException && error.name === "TimeoutError") {
+    return "The API did not respond in time.";
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return "Compression failed";
+};
+
 export const useOptimizer = () => {
   const jobsRef = useRef<ImageJob[]>([]);
   const optionsRef = useRef<CompressionOptions>({
     ...DEFAULT_COMPRESSION_OPTIONS,
   });
+  // addFiles reads jobsRef.current.length before an await; a second drop
+  // during a slow ingest would otherwise see the pre-ingest count and bypass
+  // the MAX_FILES ceiling. This tracks files already claimed but not yet
+  // committed to jobsRef.
+  const pendingIngestRef = useRef(0);
   const qualityApplyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
@@ -31,6 +46,15 @@ export const useOptimizer = () => {
   );
   if (generationRef.current === (null as unknown as Map<string, number>)) {
     generationRef.current = new Map();
+  }
+  const abortControllersRef = useRef<Map<string, AbortController>>(
+    null as unknown as Map<string, AbortController>
+  );
+  if (
+    abortControllersRef.current ===
+    (null as unknown as Map<string, AbortController>)
+  ) {
+    abortControllersRef.current = new Map();
   }
   const [jobs, setJobs] = useState<ImageJob[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -114,6 +138,7 @@ export const useOptimizer = () => {
   );
 
   const invalidateJob = useCallback((id: string) => {
+    abortControllersRef.current.get(id)?.abort();
     const nextGeneration = (generationRef.current.get(id) ?? 0) + 1;
     generationRef.current.set(id, nextGeneration);
     return nextGeneration;
@@ -153,13 +178,16 @@ export const useOptimizer = () => {
         status: "processing",
       }));
 
+      const controller = new AbortController();
+      abortControllersRef.current.set(job.id, controller);
+
       try {
         const result = shouldUseBrowserEncoder(
           job.inputFormat,
           resolvedOptions.outputFormat
         )
           ? await compressWithBrowser(job, resolvedOptions)
-          : await compressWithApi(job, resolvedOptions);
+          : await compressWithApi(job, resolvedOptions, controller.signal);
 
         if (isJobRunStale(job.id, generation)) {
           URL.revokeObjectURL(result.url);
@@ -177,9 +205,11 @@ export const useOptimizer = () => {
           return;
         }
 
+        const message = describeCompressionError(error);
+
         updateJob(job.id, (current) => ({
           ...current,
-          error: error instanceof Error ? error.message : "Compression failed",
+          error: message,
           status: "error",
         }));
       }
@@ -212,11 +242,18 @@ export const useOptimizer = () => {
   const addFiles = useCallback(
     async (fileList: File[] | FileList) => {
       setNotice(null);
-      const { jobs: nextJobs, messages } = await ingestFiles(
-        [...fileList],
-        jobsRef.current.length
-      );
+      const claimed = fileList.length;
+      const startCount = jobsRef.current.length + pendingIngestRef.current;
+      pendingIngestRef.current += claimed;
 
+      let ingestResult: Awaited<ReturnType<typeof ingestFiles>>;
+      try {
+        ingestResult = await ingestFiles([...fileList], startCount);
+      } finally {
+        pendingIngestRef.current -= claimed;
+      }
+
+      const { jobs: nextJobs, messages } = ingestResult;
       if (messages.length > 0) {
         setNotice(messages.slice(0, 3).join(" "));
       }
@@ -303,6 +340,8 @@ export const useOptimizer = () => {
       currentSelected === id ? (remaining[0]?.id ?? null) : currentSelected
     );
 
+    abortControllersRef.current.get(id)?.abort();
+    abortControllersRef.current.delete(id);
     generationRef.current.delete(id);
   }, []);
 
@@ -315,6 +354,10 @@ export const useOptimizer = () => {
     setSelectedId(null);
     setOptionsDirty(false);
     setNotice(null);
+    for (const controller of abortControllersRef.current.values()) {
+      controller.abort();
+    }
+    abortControllersRef.current.clear();
     generationRef.current.clear();
   }, []);
 

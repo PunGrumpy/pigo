@@ -1,4 +1,5 @@
 import { readPreview } from "@/lib/compress/browser";
+import { MAX_CONCURRENT_JOBS, runWithConcurrency } from "@/lib/compress/pool";
 import { parseJpegExif } from "@/lib/image/exif";
 import { formatFromMime } from "@/lib/image/format";
 import type { ImageFormat, ImageJob } from "@/lib/image/types";
@@ -87,8 +88,15 @@ export const ingestFiles = async (
 ): Promise<IngestResult> => {
   const messages: string[] = [];
   const accepted = acceptFiles(files, startCount, messages);
-  const outcomes = await Promise.all(
-    accepted.map(({ file, inputFormat }) => jobFromFile(file, inputFormat))
+  const outcomes: (ImageJob | string)[] = Array.from({
+    length: accepted.length,
+  });
+  await runWithConcurrency(
+    accepted.map((entry, index) => ({ entry, index })),
+    MAX_CONCURRENT_JOBS,
+    async ({ entry, index }) => {
+      outcomes[index] = await jobFromFile(entry.file, entry.inputFormat);
+    }
   );
 
   const jobs: ImageJob[] = [];

@@ -81,4 +81,52 @@ describe("sanitizeCompressionOptions", () => {
       }).outputFormat
     ).toBe(DEFAULT_COMPRESSION_OPTIONS.outputFormat);
   });
+
+  it("clamps resize dimensions to MAX_DIMENSION", () => {
+    expect(
+      sanitizeCompressionOptions({
+        maintainAspect: true,
+        outputFormat: "jpeg",
+        quality: 50,
+        resizeEnabled: true,
+        resizeHeight: 999_999,
+        resizeWidth: 999_999,
+      })
+    ).toMatchObject({
+      resizeHeight: MAX_DIMENSION,
+      resizeWidth: MAX_DIMENSION,
+    });
+  });
+
+  it("floors negative or invalid resize dimensions to 0", () => {
+    expect(
+      sanitizeCompressionOptions({
+        maintainAspect: true,
+        outputFormat: "jpeg",
+        quality: 50,
+        resizeEnabled: true,
+        resizeHeight: Number.NaN,
+        resizeWidth: -5,
+      })
+    ).toMatchObject({
+      resizeHeight: 0,
+      resizeWidth: 0,
+    });
+  });
+
+  it("rounds fractional resize dimensions", () => {
+    expect(
+      sanitizeCompressionOptions({
+        maintainAspect: true,
+        outputFormat: "jpeg",
+        quality: 50,
+        resizeEnabled: true,
+        resizeHeight: 800.6,
+        resizeWidth: 800.6,
+      })
+    ).toMatchObject({
+      resizeHeight: 801,
+      resizeWidth: 801,
+    });
+  });
 });

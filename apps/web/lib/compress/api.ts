@@ -43,9 +43,14 @@ const resultFromBlob = (
   };
 };
 
+// The server's write timeout is 90s (apps/api/main.go); 120s means the client
+// only gives up after the server certainly has.
+const API_TIMEOUT_MS = 120_000;
+
 export const compressWithApi = async (
   job: ImageJob,
-  options: CompressionOptions
+  options: CompressionOptions,
+  signal?: AbortSignal
 ): Promise<ImageResult> => {
   const form = new FormData();
   form.append("file", job.file, job.name);
@@ -68,6 +73,9 @@ export const compressWithApi = async (
   const response = await fetch(`${apiBase}/compress`, {
     body: form,
     method: "POST",
+    signal: signal
+      ? AbortSignal.any([signal, AbortSignal.timeout(API_TIMEOUT_MS)])
+      : AbortSignal.timeout(API_TIMEOUT_MS),
   });
 
   if (!response.ok) {
