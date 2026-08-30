@@ -13,10 +13,10 @@ func CORS(next http.Handler) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
+		w.Header().Add("Vary", "Origin")
 		if origin != "" && isOriginAllowed(origin, allowedOrigins) {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Access-Control-Expose-Headers", compressionExposeHeaders)
-			w.Header().Add("Vary", "Origin")
 		}
 
 		if r.Method == http.MethodOptions {
@@ -55,15 +55,16 @@ func parseAllowedOrigins() []string {
 
 func isOriginAllowed(origin string, allowedOrigins []string) bool {
 	for _, allowed := range allowedOrigins {
-		if origin == allowed {
+		if allowed == origin {
 			return true
 		}
+		if suffix, ok := strings.CutPrefix(allowed, "https://*."); ok {
+			host, hostOK := strings.CutPrefix(origin, "https://")
+			if hostOK && strings.HasSuffix(host, "."+suffix) &&
+				!strings.Contains(strings.TrimSuffix(host, "."+suffix), ".") {
+				return true
+			}
+		}
 	}
-
-	// Vercel preview deployments for the web app (e.g. pigo-web-git-main-user.vercel.app).
-	if strings.HasPrefix(origin, "https://pigo-web") && strings.HasSuffix(origin, ".vercel.app") {
-		return true
-	}
-
 	return false
 }
