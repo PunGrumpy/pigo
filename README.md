@@ -69,12 +69,12 @@ bun dev
 
 ### Configuration
 
-The API backend reads its configuration from environment variables. Copy `apps/api/.env.example` to `apps/api/.env` and adjust as needed.
+The API reads its settings from the process environment. Set these variables before you start the API; `apps/api/.env.example` documents each one.
 
 | Variable | Default | Description |
 | :-- | :-- | :-- |
 | `PORT` | `3001` | Port the API listens on. |
-| `CORS_ALLOWED_ORIGINS` | `http://localhost:3000, http://127.0.0.1:3000, https://pigo-web.vercel.app` | Comma-separated list of exact origins allowed by CORS. Entries of the form `https://*.example.com` match one subdomain level. |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:3000, http://127.0.0.1:3000, https://pigo-web.vercel.app` | Comma-separated origins the API allows for CORS. Entries of the form `https://*.example.com` match one subdomain level. |
 
 ### Formatting and linting
 
