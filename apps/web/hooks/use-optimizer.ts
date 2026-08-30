@@ -33,6 +33,11 @@ export const useOptimizer = () => {
   const optionsRef = useRef<CompressionOptions>({
     ...DEFAULT_COMPRESSION_OPTIONS,
   });
+  // addFiles reads jobsRef.current.length before an await; a second drop
+  // during a slow ingest would otherwise see the pre-ingest count and bypass
+  // the MAX_FILES ceiling. This tracks files already claimed but not yet
+  // committed to jobsRef.
+  const pendingIngestRef = useRef(0);
   const qualityApplyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
@@ -237,11 +242,18 @@ export const useOptimizer = () => {
   const addFiles = useCallback(
     async (fileList: File[] | FileList) => {
       setNotice(null);
-      const { jobs: nextJobs, messages } = await ingestFiles(
-        [...fileList],
-        jobsRef.current.length
-      );
+      const claimed = fileList.length;
+      const startCount = jobsRef.current.length + pendingIngestRef.current;
+      pendingIngestRef.current += claimed;
 
+      let ingestResult: Awaited<ReturnType<typeof ingestFiles>>;
+      try {
+        ingestResult = await ingestFiles([...fileList], startCount);
+      } finally {
+        pendingIngestRef.current -= claimed;
+      }
+
+      const { jobs: nextJobs, messages } = ingestResult;
       if (messages.length > 0) {
         setNotice(messages.slice(0, 3).join(" "));
       }

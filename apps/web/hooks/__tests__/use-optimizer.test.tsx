@@ -86,12 +86,26 @@ const makeFakeJob = (file: File): ImageJob => {
   };
 };
 
-const ingestFilesMock = mock((files: File[]) =>
-  Promise.resolve({
-    jobs: files.map(makeFakeJob),
-    messages: [],
-  })
-);
+interface IngestCall {
+  files: File[];
+  startCount: number;
+  deferred: Deferred<{ jobs: ImageJob[]; messages: string[] }>;
+}
+
+// Populated in call order; each entry auto-resolves immediately unless
+// autoResolveIngest is turned off, letting a test hold an ingest open to
+// observe what the next addFiles call sees.
+let ingestCalls: IngestCall[] = [];
+let autoResolveIngest = true;
+
+const ingestFilesMock = mock((files: File[], startCount: number) => {
+  const deferred = createDeferred<{ jobs: ImageJob[]; messages: string[] }>();
+  ingestCalls.push({ deferred, files, startCount });
+  if (autoResolveIngest) {
+    deferred.resolve({ jobs: files.map(makeFakeJob), messages: [] });
+  }
+  return deferred.promise;
+});
 
 mock.module("@/lib/compress/api", () => ({
   compressWithApi: compressWithApiMock,
@@ -138,6 +152,8 @@ const makeFile = (name: string) =>
 
 beforeEach(() => {
   compressCalls = [];
+  ingestCalls = [];
+  autoResolveIngest = true;
   jobCounter = 0;
   resultUrlCounter = 0;
 });
@@ -324,5 +340,39 @@ describe("useOptimizer", () => {
     } finally {
       jest.useRealTimers();
     }
+  });
+
+  it("counts a still-ingesting drop toward the file-count gate seen by the next one", async () => {
+    const { result } = renderHook(() => useOptimizer());
+    autoResolveIngest = false;
+
+    let firstAddFiles!: Promise<void>;
+    let secondAddFiles!: Promise<void>;
+
+    act(() => {
+      firstAddFiles = result.current.actions.addFiles([
+        makeFile("a.jpg"),
+        makeFile("b.jpg"),
+      ]);
+    });
+    act(() => {
+      secondAddFiles = result.current.actions.addFiles([makeFile("c.jpg")]);
+    });
+
+    expect(ingestCalls).toHaveLength(2);
+    expect(ingestCalls[0]?.startCount).toBe(0);
+    expect(ingestCalls[1]?.startCount).toBe(2);
+
+    await act(async () => {
+      ingestCalls[0]?.deferred.resolve({
+        jobs: (ingestCalls[0]?.files ?? []).map(makeFakeJob),
+        messages: [],
+      });
+      ingestCalls[1]?.deferred.resolve({
+        jobs: (ingestCalls[1]?.files ?? []).map(makeFakeJob),
+        messages: [],
+      });
+      await Promise.all([firstAddFiles, secondAddFiles]);
+    });
   });
 });
