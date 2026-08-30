@@ -216,11 +216,9 @@ func TestHandleCompressCanceledContextStopsBeforeWrite(t *testing.T) {
 	}
 }
 
-// countingCancelContext wraps a context and reports itself as done only
-// after Err() has been called at least errAfter times. This lets a test
-// simulate a deadline that expires specifically after the last context
-// check earlier in the handler has already passed, exercising the check
-// placed right after core.Encode.
+// countingCancelContext lets a test time cancellation to a specific Err()
+// call, so it can land after earlier context checks in the handler have
+// already passed.
 type countingCancelContext struct {
 	context.Context
 	calls    int
@@ -241,8 +239,8 @@ func TestHandleCompressContextCanceledAfterEncodeStopsBeforeWrite(t *testing.T) 
 
 	// The handler checks r.Context().Err() three times before reaching
 	// core.Encode (after ParseMultipartForm, after Decode, after Resize).
-	// Cancel only from the 4th call onward so this test specifically
-	// exercises the check added after Encode.
+	// Cancel only from the 4th call onward so this test exercises the
+	// check added after Encode.
 	ctx := &countingCancelContext{Context: req.Context(), errAfter: 4}
 	req = req.WithContext(ctx)
 
