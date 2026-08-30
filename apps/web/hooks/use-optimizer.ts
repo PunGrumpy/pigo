@@ -18,6 +18,16 @@ import type { CompressionOptions, ImageJob } from "@/lib/image/types";
 
 export type FilterTab = "all" | "optimized" | "errors";
 
+const describeCompressionError = (error: unknown): string => {
+  if (error instanceof DOMException && error.name === "TimeoutError") {
+    return "The API did not respond in time.";
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return "Compression failed";
+};
+
 export const useOptimizer = () => {
   const jobsRef = useRef<ImageJob[]>([]);
   const optionsRef = useRef<CompressionOptions>({
@@ -31,6 +41,15 @@ export const useOptimizer = () => {
   );
   if (generationRef.current === (null as unknown as Map<string, number>)) {
     generationRef.current = new Map();
+  }
+  const abortControllersRef = useRef<Map<string, AbortController>>(
+    null as unknown as Map<string, AbortController>
+  );
+  if (
+    abortControllersRef.current ===
+    (null as unknown as Map<string, AbortController>)
+  ) {
+    abortControllersRef.current = new Map();
   }
   const [jobs, setJobs] = useState<ImageJob[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -114,6 +133,7 @@ export const useOptimizer = () => {
   );
 
   const invalidateJob = useCallback((id: string) => {
+    abortControllersRef.current.get(id)?.abort();
     const nextGeneration = (generationRef.current.get(id) ?? 0) + 1;
     generationRef.current.set(id, nextGeneration);
     return nextGeneration;
@@ -153,13 +173,16 @@ export const useOptimizer = () => {
         status: "processing",
       }));
 
+      const controller = new AbortController();
+      abortControllersRef.current.set(job.id, controller);
+
       try {
         const result = shouldUseBrowserEncoder(
           job.inputFormat,
           resolvedOptions.outputFormat
         )
           ? await compressWithBrowser(job, resolvedOptions)
-          : await compressWithApi(job, resolvedOptions);
+          : await compressWithApi(job, resolvedOptions, controller.signal);
 
         if (isJobRunStale(job.id, generation)) {
           URL.revokeObjectURL(result.url);
@@ -177,9 +200,11 @@ export const useOptimizer = () => {
           return;
         }
 
+        const message = describeCompressionError(error);
+
         updateJob(job.id, (current) => ({
           ...current,
-          error: error instanceof Error ? error.message : "Compression failed",
+          error: message,
           status: "error",
         }));
       }
@@ -303,6 +328,8 @@ export const useOptimizer = () => {
       currentSelected === id ? (remaining[0]?.id ?? null) : currentSelected
     );
 
+    abortControllersRef.current.get(id)?.abort();
+    abortControllersRef.current.delete(id);
     generationRef.current.delete(id);
   }, []);
 
@@ -315,6 +342,10 @@ export const useOptimizer = () => {
     setSelectedId(null);
     setOptionsDirty(false);
     setNotice(null);
+    for (const controller of abortControllersRef.current.values()) {
+      controller.abort();
+    }
+    abortControllersRef.current.clear();
     generationRef.current.clear();
   }, []);
 
