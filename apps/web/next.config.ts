@@ -1,7 +1,5 @@
 import type { NextConfig } from "next";
 
-import { env } from "./env";
-
 const nextConfig: NextConfig = {
   experimental: {
     turbopackFileSystemCacheForDev: true,
@@ -11,6 +9,9 @@ const nextConfig: NextConfig = {
     formats: ["image/avif", "image/webp"],
   },
 
+  // Reads the raw variable instead of the validated env module. Importing
+  // that module here would make `next typegen` require a production-only
+  // variable, and this branch only runs in development.
   // oxlint-disable-next-line require-await
   async rewrites() {
     if (process.env.VERCEL) {
@@ -19,7 +20,7 @@ const nextConfig: NextConfig = {
 
     return [
       {
-        destination: `${env.NEXT_PUBLIC_API_URL}/:path*`,
+        destination: `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"}/:path*`,
         source: "/api/:path*",
       },
     ];
