@@ -13,8 +13,8 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 
 // Captured before mock.module runs below, so the mocked browser module can
 // still re-export the real readPreview/targetDimensions. mock.module replaces
-// the shared module registry entry for the whole test run (not just this
-// file) — other suites (e.g. browser.test.ts) import the same file and need
+// the shared module registry entry for the whole test run, not just this
+// file, and other suites (e.g. browser.test.ts) import the same file and need
 // those real exports to keep working.
 import { readPreview, targetDimensions } from "@/lib/compress/browser";
 import type {
@@ -142,8 +142,8 @@ beforeEach(() => {
 });
 
 // mock.module patches the shared module registry for the whole test run, not
-// just this file — restore it so other suites (e.g. browser.test.ts) see the
-// real @/lib/compress/browser and @/lib/compress/api exports again.
+// just this file, so restore it here so other suites (e.g. browser.test.ts)
+// see the real @/lib/compress/browser and @/lib/compress/api exports again.
 afterAll(() => {
   mock.restore();
 });
