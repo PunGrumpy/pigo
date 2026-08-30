@@ -50,6 +50,8 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Build
         if: ${{ matrix.name != 'Format' }}
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3001
         run: bun run build
       - name: ${{ matrix.name }}
         run: ${{ matrix.command }}
