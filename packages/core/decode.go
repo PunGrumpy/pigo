@@ -7,7 +7,6 @@ import (
 	"image"
 	"io"
 
-	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
 

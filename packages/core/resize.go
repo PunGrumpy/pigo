@@ -21,6 +21,13 @@ func Resize(src image.Image, opts CompressionOptions) (image.Image, int, int, er
 	if int64(dstWidth)*int64(dstHeight) > MaxPixels {
 		return nil, 0, 0, fmt.Errorf("resized image exceeds the 100MP pixel limit")
 	}
+	if dstWidth > MaxDimension || dstHeight > MaxDimension {
+		return nil, 0, 0, fmt.Errorf("resized image exceeds the %d pixel per-side limit", MaxDimension)
+	}
+	srcPixels := int64(srcWidth) * int64(srcHeight)
+	if int64(dstWidth)*int64(dstHeight) > srcPixels*MaxUpscaleFactor {
+		return nil, 0, 0, fmt.Errorf("resized image cannot exceed %d times the source pixel count", MaxUpscaleFactor)
+	}
 	if dstWidth == srcWidth && dstHeight == srcHeight {
 		return src, srcWidth, srcHeight, nil
 	}

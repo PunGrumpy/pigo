@@ -65,6 +65,32 @@ func TestDecodeJPEGHappyPath(t *testing.T) {
 	}
 }
 
+func TestDecodeGIFRejected(t *testing.T) {
+	// GIF is deliberately not registered as a decodable format (see the
+	// removed "image/gif" blank import in decode.go), so a well-formed GIF
+	// must fail with the same "only JPEG, PNG, and WebP" message as any
+	// other unsupported format.
+	//
+	// The bytes are a hand-built minimal 1x1 transparent GIF87a/89a (the
+	// canonical "smallest possible GIF"), not produced via the image/gif
+	// package: importing that package here would run its init() and
+	// re-register the GIF format for this whole test binary, defeating the
+	// point of the test.
+	gifBytes := []byte{
+		0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x01, 0x00, 0x01, 0x00, 0x80, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0x2c, 0x00, 0x00, 0x00, 0x00,
+		0x01, 0x00, 0x01, 0x00, 0x00, 0x02, 0x01, 0x4c, 0x00, 0x3b,
+	}
+
+	_, _, _, err := Decode(bytes.NewReader(gifBytes))
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "only JPEG, PNG, and WebP") {
+		t.Fatalf("got error %q, want it to contain %q", err.Error(), "only JPEG, PNG, and WebP")
+	}
+}
+
 func TestDecodeGarbageBytes(t *testing.T) {
 	_, _, _, err := Decode(bytes.NewReader([]byte("not an image, just garbage bytes")))
 	if err == nil {
