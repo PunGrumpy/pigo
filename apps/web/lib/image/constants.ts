@@ -32,6 +32,14 @@ export const normalizeQuality = (quality: number) => {
   return Math.min(100, Math.max(1, rounded));
 };
 
+const normalizeDimension = (value: number) => {
+  const rounded = Math.round(value);
+  if (!Number.isFinite(rounded) || rounded <= 0) {
+    return 0;
+  }
+  return Math.min(MAX_DIMENSION, rounded);
+};
+
 export const sanitizeCompressionOptions = (
   options: CompressionOptions
 ): CompressionOptions => ({
@@ -41,4 +49,6 @@ export const sanitizeCompressionOptions = (
     ? options.outputFormat
     : DEFAULT_COMPRESSION_OPTIONS.outputFormat,
   quality: normalizeQuality(options.quality),
+  resizeHeight: normalizeDimension(options.resizeHeight),
+  resizeWidth: normalizeDimension(options.resizeWidth),
 });
