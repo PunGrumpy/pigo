@@ -139,3 +139,7 @@ Response:
   "status": "ok"
 }
 ```
+
+## License
+
+[MIT](LICENSE)
