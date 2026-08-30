@@ -264,6 +264,23 @@ func TestHandleCompressContextCanceledAfterEncodeStopsBeforeWrite(t *testing.T) 
 	}
 }
 
+func TestHandleCompressMalformedMultipartBody(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/compress", bytes.NewBufferString("this is not a valid multipart body"))
+	req.Header.Set("Content-Type", "multipart/form-data; boundary=x")
+	rec := httptest.NewRecorder()
+
+	HandleCompress(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("got status %d, want %d; body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	apiErr := decodeAPIError(t, rec.Body.Bytes())
+	want := "Multipart body is invalid"
+	if apiErr.Error != want {
+		t.Fatalf("got error %q, want %q", apiErr.Error, want)
+	}
+}
+
 func TestHandleCompressBodyTooLarge(t *testing.T) {
 	oversized := make([]byte, core.MaxFileSize+1)
 	req := multipartRequest(t, oversized, "input.bin", nil)

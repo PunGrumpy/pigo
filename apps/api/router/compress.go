@@ -14,7 +14,12 @@ func HandleCompress(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, core.MaxFileSize+1_048_576) // 1MB buffer
 
 	if err := r.ParseMultipartForm(core.MaxFileSize); err != nil {
-		writeError(w, http.StatusRequestEntityTooLarge, "File is too large or the multipart body is invalid")
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			writeError(w, http.StatusRequestEntityTooLarge, "File is too large")
+			return
+		}
+		writeError(w, http.StatusBadRequest, "Multipart body is invalid")
 		return
 	}
 
