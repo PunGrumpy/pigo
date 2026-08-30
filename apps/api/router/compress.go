@@ -78,6 +78,10 @@ func HandleCompress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if r.Context().Err() != nil {
+		return // client gone or deadline passed; chi's Timeout middleware owns the 504
+	}
+
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Original-Size", strconv.Itoa(len(data)))

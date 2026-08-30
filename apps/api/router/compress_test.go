@@ -216,6 +216,54 @@ func TestHandleCompressCanceledContextStopsBeforeWrite(t *testing.T) {
 	}
 }
 
+// countingCancelContext wraps a context and reports itself as done only
+// after Err() has been called at least errAfter times. This lets a test
+// simulate a deadline that expires specifically after the last context
+// check earlier in the handler has already passed, exercising the check
+// placed right after core.Encode.
+type countingCancelContext struct {
+	context.Context
+	calls    int
+	errAfter int
+}
+
+func (c *countingCancelContext) Err() error {
+	c.calls++
+	if c.calls >= c.errAfter {
+		return context.Canceled
+	}
+	return nil
+}
+
+func TestHandleCompressContextCanceledAfterEncodeStopsBeforeWrite(t *testing.T) {
+	fixture := pngFixture(t, 10, 10)
+	req := multipartRequest(t, fixture, "input.png", nil)
+
+	// The handler checks r.Context().Err() three times before reaching
+	// core.Encode (after ParseMultipartForm, after Decode, after Resize).
+	// Cancel only from the 4th call onward so this test specifically
+	// exercises the check added after Encode.
+	ctx := &countingCancelContext{Context: req.Context(), errAfter: 4}
+	req = req.WithContext(ctx)
+
+	rec := httptest.NewRecorder()
+
+	HandleCompress(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("got status %d, want httptest.NewRecorder default %d (handler must not call WriteHeader)", rec.Code, http.StatusOK)
+	}
+	if rec.Body.Len() != 0 {
+		t.Fatalf("expected no body written, got %d bytes", rec.Body.Len())
+	}
+	if got := rec.Header().Get("X-Width"); got != "" {
+		t.Fatalf("expected no X-Width header, got %q", got)
+	}
+	if ctx.calls < 4 {
+		t.Fatalf("expected at least 4 context checks, got %d", ctx.calls)
+	}
+}
+
 func TestHandleCompressBodyTooLarge(t *testing.T) {
 	oversized := make([]byte, core.MaxFileSize+1)
 	req := multipartRequest(t, oversized, "input.bin", nil)
