@@ -163,3 +163,69 @@ func TestResizeExceedsPixelLimit(t *testing.T) {
 		t.Fatalf("expected error containing %q, got %q", "100MP", err.Error())
 	}
 }
+
+func TestResizeExceedsPerSideLimit(t *testing.T) {
+	// 1x1000 source, resize width to 100 with aspect maintained derives a
+	// height of 100000, which is under the pixel-count limit but exceeds
+	// the 16384 per-side limit.
+	src := image.NewRGBA(image.Rect(0, 0, 1, 1000))
+	_, _, _, err := Resize(src, CompressionOptions{
+		MaintainAspect: true,
+		ResizeWidth:    100,
+	})
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "per-side limit") {
+		t.Fatalf("expected error containing %q, got %q", "per-side limit", err.Error())
+	}
+}
+
+func TestResizeExceedsUpscaleFactor(t *testing.T) {
+	// 1x1 source upscaled to 10000x10000 is far beyond the 16x pixel
+	// upscale factor even though it stays under the absolute pixel and
+	// per-side limits.
+	src := image.NewRGBA(image.Rect(0, 0, 1, 1))
+	_, _, _, err := Resize(src, CompressionOptions{
+		MaintainAspect: false,
+		ResizeWidth:    10000,
+		ResizeHeight:   10000,
+	})
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "times the source pixel count") {
+		t.Fatalf("expected error containing %q, got %q", "times the source pixel count", err.Error())
+	}
+}
+
+func TestResizeWithinUpscaleFactorSucceeds(t *testing.T) {
+	// 800x600 source upscaled to 1600x1200 is a 4x pixel increase, well
+	// within the 16x upscale factor limit, so it must succeed.
+	src := image.NewRGBA(image.Rect(0, 0, 800, 600))
+	_, width, height, err := Resize(src, CompressionOptions{
+		MaintainAspect: false,
+		ResizeWidth:    1600,
+		ResizeHeight:   1200,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if width != 1600 || height != 1200 {
+		t.Fatalf("got dims (%d, %d), want (1600, 1200)", width, height)
+	}
+}
+
+func TestResizeAspectDerivedDimensionExceedsPerSideLimit(t *testing.T) {
+	// 100x100 source, resize width to 16384 with aspect maintained derives
+	// a height of 16384 too, which pushes the pixel count over MaxPixels.
+	// Either the pixel-count or per-side gate must reject it.
+	src := image.NewRGBA(image.Rect(0, 0, 100, 100))
+	_, _, _, err := Resize(src, CompressionOptions{
+		MaintainAspect: true,
+		ResizeWidth:    16384,
+	})
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+}
