@@ -6,6 +6,10 @@ on:
       - main
   pull_request:
 
+concurrency:
+  group: code-quality-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -28,10 +32,13 @@ jobs:
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v7
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
       - name: Install Bun
         uses: oven-sh/setup-bun@v2
+      - name: Cache Bun install
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
