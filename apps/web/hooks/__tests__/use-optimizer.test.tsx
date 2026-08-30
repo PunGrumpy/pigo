@@ -44,6 +44,7 @@ interface CompressCall {
   job: ImageJob;
   options: CompressionOptions;
   deferred: Deferred<ImageResult>;
+  signal?: AbortSignal;
 }
 
 // Populated in call order by both compress mocks below; tests resolve/reject
@@ -52,9 +53,9 @@ let compressCalls: CompressCall[] = [];
 let jobCounter = 0;
 
 const compressWithApiMock = mock(
-  (job: ImageJob, options: CompressionOptions) => {
+  (job: ImageJob, options: CompressionOptions, signal?: AbortSignal) => {
     const deferred = createDeferred<ImageResult>();
-    compressCalls.push({ deferred, job, options });
+    compressCalls.push({ deferred, job, options, signal });
     return deferred.promise;
   }
 );
@@ -192,6 +193,7 @@ describe("useOptimizer", () => {
       result.current.actions.applyOptions();
     });
     expect(compressCalls).toHaveLength(2);
+    expect(compressCalls[0]?.signal?.aborted).toBe(true);
 
     const staleResult = makeResult({ url: "blob:stale-result" });
     await act(async () => {
@@ -234,6 +236,7 @@ describe("useOptimizer", () => {
       result.current.actions.removeJob(jobId);
     });
     expect(result.current.state.jobs).toHaveLength(0);
+    expect(compressCalls[0]?.signal?.aborted).toBe(true);
 
     const staleResult = makeResult({ url: "blob:removed-result" });
     await act(async () => {
