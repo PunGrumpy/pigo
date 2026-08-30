@@ -67,6 +67,15 @@ bun dev
 - **Frontend**: `http://localhost:3000`
 - **API backend**: `http://localhost:3001`
 
+### Configuration
+
+The API backend reads its configuration from environment variables. Copy `apps/api/.env.example` to `apps/api/.env` and adjust as needed.
+
+| Variable | Default | Description |
+| :-- | :-- | :-- |
+| `PORT` | `3001` | Port the API listens on. |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:3000, http://127.0.0.1:3000, https://pigo-web.vercel.app` | Comma-separated list of exact origins allowed by CORS. Entries of the form `https://*.example.com` match one subdomain level. |
+
 ### Formatting and linting
 
 This project uses Ultracite (Oxlint + Oxfmt) to enforce code standards and formatting.
