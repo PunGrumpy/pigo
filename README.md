@@ -43,6 +43,8 @@ turbo run build --filter=github.com/PunGrumpy/pigo/apps/api
 
 `turbo run test` and `turbo run lint` cover every Go module in one pass, through a package Turborepo names `go-workspace`. Filtering to a single module runs `go test ./...` inside that module instead.
 
+Vercel builds both apps without `turbo`. The flag makes Turborepo shell out to `go work edit -json` on every invocation, so a Next.js build image with no Go toolchain can no longer run it. Each app's `vercel.json` sets an explicit `buildCommand` that skips Turborepo, and the Go one writes to `$VERCEL_OUTPUT_FILE` so the platform finds the binary wherever the build runs from.
+
 ## Getting started
 
 ### Prerequisites
