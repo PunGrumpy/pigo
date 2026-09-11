@@ -10,13 +10,13 @@ A minimal-dependency, minimal-configuration image optimizer with a Go API backen
 - **Go API backend**: A REST server built on the standard library's JPEG and PNG codecs, with Catmull-Rom interpolation for resizing.
 - **Next.js frontend**: Drag-and-drop uploads, clipboard paste, ZIP downloads, and a before/after comparison slider.
 - **Zero heavy runtime dependencies**: The backend builds and runs without C libraries, GraphicsMagick, or libvips.
-- **Turborepo monorepo**: Bun workspaces handle builds and package management.
+- **Turborepo monorepo**: Bun workspaces and `go.work` modules are both first-class Turborepo packages.
 
 ## Tech stack
 
 - **Backend**: Go (1.26+), [`chi`](https://github.com/go-chi/chi) router, `golang.org/x/image/draw`
 - **Frontend**: Next.js (16.3+), React 19, Tailwind CSS v4, Lucide Icons, JSZip
-- **Tooling**: Bun, Turborepo, [Ultracite](https://github.com/PunGrumpy/ultracite) (Oxlint + Oxfmt), Air (Go hot-reloading)
+- **Tooling**: Bun, Turborepo (with experimental Go workspace support), [Ultracite](https://github.com/PunGrumpy/ultracite) (Oxlint + Oxfmt)
 
 ## Project structure
 
@@ -28,8 +28,17 @@ pigo/
 ├── packages/
 │   ├── core/                # Go image decoding, encoding, and resizing
 │   └── typescript-config/   # Shared TypeScript configs
-└── package.json             # Workspace configuration
+├── go.work                  # Go workspace; its members are Turborepo packages
+└── package.json             # Bun workspace configuration
 ```
+
+The Go modules (`apps/api`, `packages/core`) have no `package.json`. Turborepo reads them from `go.work` and synthesizes their tasks, so they are addressed by module path:
+
+```bash
+turbo run build --filter=github.com/PunGrumpy/pigo/apps/api
+```
+
+Repository-wide Go tasks (`test`, `lint`, `format`) run in the synthetic `go-workspace` package.
 
 ## Getting started
 
@@ -39,7 +48,6 @@ Make sure you have the following installed:
 
 - [Go](https://go.dev/doc/install) (1.26 or later)
 - [Bun](https://bun.sh) (1.3.14 or later)
-- [Air](https://github.com/air-verse/air), optional, for API hot-reloading
 
 ### Installation
 
