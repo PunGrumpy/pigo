@@ -10,7 +10,7 @@ A minimal-dependency, minimal-configuration image optimizer with a Go API backen
 - **Go API backend**: A REST server built on the standard library's JPEG and PNG codecs, with Catmull-Rom interpolation for resizing.
 - **Next.js frontend**: Drag-and-drop uploads, clipboard paste, ZIP downloads, and a before/after comparison slider.
 - **Zero heavy runtime dependencies**: The backend builds and runs without C libraries, GraphicsMagick, or libvips.
-- **Turborepo monorepo**: Bun workspaces and `go.work` modules are both first-class Turborepo packages.
+- **Turborepo monorepo**: Bun workspaces and `go.work` modules share one task graph and one cache.
 
 ## Tech stack
 
@@ -19,6 +19,8 @@ A minimal-dependency, minimal-configuration image optimizer with a Go API backen
 - **Tooling**: Bun, Turborepo (with experimental Go workspace support), [Ultracite](https://github.com/PunGrumpy/ultracite) (Oxlint + Oxfmt)
 
 ## Project structure
+
+Two apps and two shared packages, split across a Bun workspace and a Go workspace:
 
 ```text
 pigo/
@@ -32,13 +34,14 @@ pigo/
 └── package.json             # Bun workspace configuration
 ```
 
-The Go modules (`apps/api`, `packages/core`) have no `package.json`. Turborepo reads them from `go.work` and synthesizes their tasks, so they are addressed by module path:
+The Go modules (`apps/api`, `packages/core`) have no `package.json`. Turborepo reads them from `go.work` and derives their tasks, so you target a module by its directory or by its module path:
 
 ```bash
+turbo run build --filter=./apps/api
 turbo run build --filter=github.com/PunGrumpy/pigo/apps/api
 ```
 
-Repository-wide Go tasks (`test`, `lint`, `format`) run in the synthetic `go-workspace` package.
+`turbo run test` and `turbo run lint` cover every Go module in one pass, through a package Turborepo names `go-workspace`. Filtering to a single module runs `go test ./...` inside that module instead.
 
 ## Getting started
 
