@@ -1,0 +1,15 @@
+{
+  "name": "@pigo/api",
+  "private": true,
+  "scripts": {
+    "build": "go build -o bin/pigo-api .",
+    "dev": "air .",
+    "test": "go test ./...",
+    "check": "go vet ./...",
+    "fix": "go fmt ./...",
+    "typecheck": "go vet ./..."
+  },
+  "dependencies": {
+    "@pigo/core": "workspace:*"
+  }
+}

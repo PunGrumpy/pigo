@@ -1,9 +1,5 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "futureFlags": {
-    "experimentalGoWorkspaces": true,
-    "experimentalTaskCommand": true
-  },
   "ui": "tui",
   "envMode": "loose",
   "tasks": {
@@ -15,7 +11,7 @@
         "VERCEL",
         "VERCEL_ENV"
       ],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+      "outputs": ["bin/**", "dist/**", ".next/**", "!.next/cache/**"]
     },
     "dev": {
       "cache": false,
@@ -25,18 +21,16 @@
       "dependsOn": ["^build"],
       "outputs": []
     },
+    "check": {
+      "cache": false,
+      "outputs": []
+    },
+    "fix": {
+      "cache": false,
+      "outputs": []
+    },
     "test": {
       "outputs": []
-    },
-    "lint": {
-      "outputs": []
-    },
-    "format": {
-      "cache": false,
-      "outputs": [],
-      "command": {
-        "go": ["gofmt", "-l", "-w", "."]
-      }
     }
   }
 }
