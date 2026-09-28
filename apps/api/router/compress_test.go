@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"image"
 	"image/png"
+	"math/rand/v2"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -111,6 +112,31 @@ func TestHandleCompressHappyPath(t *testing.T) {
 	}
 	if got := rec.Header().Get("X-Original-Size"); got != strconv.Itoa(len(fixture)) {
 		t.Errorf("got X-Original-Size %q, want %q", got, strconv.Itoa(len(fixture)))
+	}
+}
+
+func TestHandleCompressOutputTooLarge(t *testing.T) {
+	// Random pixels defeat PNG compression, so a 4x upscale encodes to far
+	// more than MaxOutputSize while the upload stays under MaxFileSize.
+	img := image.NewRGBA(image.Rect(0, 0, 512, 512))
+	rng := rand.New(rand.NewPCG(1, 2))
+	for i := range img.Pix {
+		img.Pix[i] = byte(rng.Uint32())
+	}
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		t.Fatalf("failed to encode png fixture: %v", err)
+	}
+
+	req := multipartRequest(t, buf.Bytes(), "noise.png", map[string]string{
+		"resizeWidth": "2048",
+	})
+	rec := httptest.NewRecorder()
+
+	HandleCompress(rec, req)
+
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("got status %d, want %d; body=%s", rec.Code, http.StatusUnprocessableEntity, rec.Body.String())
 	}
 }
 
