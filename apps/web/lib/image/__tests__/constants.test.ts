@@ -12,7 +12,7 @@ import {
 // These mirror packages/core/types.go; if this test fails, the Go and TS
 // limits have drifted — fix whichever side changed without the other.
 it("mirrors the Go server limits", () => {
-  expect(MAX_FILE_SIZE).toBe(20 * 1024 * 1024);
+  expect(MAX_FILE_SIZE).toBe(4 * 1024 * 1024);
   expect(MAX_PIXELS).toBe(100_000_000);
   expect(MAX_DIMENSION).toBe(16_384);
 });

@@ -82,6 +82,10 @@ func HandleCompress(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "Failed to encode image")
 		return
 	}
+	if len(out) > core.MaxOutputSize {
+		writeError(w, http.StatusUnprocessableEntity, "Compressed image is larger than 4 MB; lower the quality, shrink the dimensions, or choose JPEG")
+		return
+	}
 
 	if r.Context().Err() != nil {
 		return // client gone or deadline passed; chi's Timeout middleware owns the 504
