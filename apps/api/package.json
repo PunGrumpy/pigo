@@ -7,9 +7,17 @@
     "test": "go test ./...",
     "check": "go vet ./...",
     "fix": "go fmt ./...",
-    "typecheck": "go vet ./..."
+    "typecheck": "go vet ./... && wrangler types > /dev/null && tsc --noEmit",
+    "cf-typegen": "wrangler types",
+    "deploy": "wrangler deploy"
   },
   "dependencies": {
+    "@cloudflare/containers": "^0.3.7",
     "@pigo/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@pigo/typescript-config": "workspace:*",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.142.0"
   }
 }

@@ -1,0 +1,9 @@
+{
+  "extends": "@pigo/typescript-config/base.json",
+  "compilerOptions": {
+    "lib": ["esnext"],
+    "target": "esnext",
+    "types": ["./worker-configuration.d.ts"]
+  },
+  "include": ["worker/**/*.ts", "worker-configuration.d.ts"]
+}
