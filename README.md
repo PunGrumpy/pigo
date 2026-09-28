@@ -92,6 +92,17 @@ Rewrite files to fix what can be fixed automatically:
 bun run fix
 ```
 
+### Deploying the API
+
+The API runs on [Cloudflare Containers](https://developers.cloudflare.com/containers/). A Worker in `apps/api/worker` receives each request and forwards it to a container built from `apps/api/Dockerfile`. `apps/api/wrangler.jsonc` holds the container settings and the production `CORS_ALLOWED_ORIGINS` value.
+
+You need a Workers Paid plan and a running Docker daemon, because Wrangler builds the image locally. Deploy from the API directory:
+
+```bash
+cd apps/api
+bun run deploy
+```
+
 ## API specification
 
 ### POST `/compress`

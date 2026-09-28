@@ -53,3 +53,7 @@ bin
 
 # Go
 tmp/
+
+# Cloudflare
+.wrangler
+worker-configuration.d.ts

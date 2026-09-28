@@ -1,0 +1,37 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "pigo-api",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-09-28",
+  "observability": {
+    "enabled": true,
+  },
+  "vars": {
+    "CORS_ALLOWED_ORIGINS": "https://pigo.pungrumpy.com, https://pigo-web.vercel.app",
+  },
+  "containers": [
+    {
+      "class_name": "PigoApi",
+      // The Dockerfile copies go.work and packages/core, so the build
+      // context has to be the repository root.
+      "image": "./Dockerfile",
+      "image_build_context": "../..",
+      "instance_type": "basic",
+      "max_instances": 5,
+    },
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "class_name": "PigoApi",
+        "name": "PIGO_API",
+      },
+    ],
+  },
+  "migrations": [
+    {
+      "new_sqlite_classes": ["PigoApi"],
+      "tag": "v1",
+    },
+  ],
+}
