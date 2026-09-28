@@ -104,7 +104,7 @@ Optimizes and resizes a JPEG or PNG image.
 
 | Parameter | Type | Required | Default | Description |
 | :-- | :-- | :-- | :-- | :-- |
-| `file` | File | Yes | - | The image file to optimize, up to `20 MB`. Supported formats: JPEG, PNG, WebP. |
+| `file` | File | Yes | - | The image file to optimize, up to `4 MB`. Supported formats: JPEG, PNG, WebP. |
 | `quality` | Integer | No | `82` | Target image quality from `1` to `100`. |
 | `outputFormat` | String | No | `"same"` | Target image format: `"same"`, `"jpeg"`, or `"png"`. |
 | `resizeWidth` | Integer | No | - | Target width in pixels, `1` to `16384`. |
@@ -116,6 +116,7 @@ Optimizes and resizes a JPEG or PNG image.
 - The browser produces WebP output, not the API. A WebP upload with `outputFormat` set to `"same"` (the default) or `"webp"` returns `400`. Convert WebP through the API only to `"jpeg"` or `"png"`.
 - The API rejects GIF input with `400`.
 - The API accepts images up to 100 megapixels and 16384 pixels per side.
+- The API returns `422` when the encoded result is larger than 4 MB. Vercel Functions reject response bodies over 4.5 MB.
 
 #### Response headers
 
