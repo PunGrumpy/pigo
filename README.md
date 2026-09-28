@@ -10,15 +10,17 @@ A minimal-dependency, minimal-configuration image optimizer with a Go API backen
 - **Go API backend**: A REST server built on the standard library's JPEG and PNG codecs, with Catmull-Rom interpolation for resizing.
 - **Next.js frontend**: Drag-and-drop uploads, clipboard paste, ZIP downloads, and a before/after comparison slider.
 - **Zero heavy runtime dependencies**: The backend builds and runs without C libraries, GraphicsMagick, or libvips.
-- **Turborepo monorepo**: Bun workspaces handle builds and package management.
+- **Turborepo monorepo**: Bun workspaces and `go.work` modules share one task graph and one cache.
 
 ## Tech stack
 
 - **Backend**: Go (1.26+), [`chi`](https://github.com/go-chi/chi) router, `golang.org/x/image/draw`
 - **Frontend**: Next.js (16.3+), React 19, Tailwind CSS v4, Lucide Icons, JSZip
-- **Tooling**: Bun, Turborepo, [Ultracite](https://github.com/PunGrumpy/ultracite) (Oxlint + Oxfmt), Air (Go hot-reloading)
+- **Tooling**: Bun, Turborepo (with experimental Go workspace support), [Ultracite](https://github.com/PunGrumpy/ultracite) (Oxlint + Oxfmt)
 
 ## Project structure
+
+Two apps and two shared packages, split across a Bun workspace and a Go workspace:
 
 ```text
 pigo/
@@ -28,8 +30,20 @@ pigo/
 ├── packages/
 │   ├── core/                # Go image decoding, encoding, and resizing
 │   └── typescript-config/   # Shared TypeScript configs
-└── package.json             # Workspace configuration
+├── go.work                  # Go workspace; its members are Turborepo packages
+└── package.json             # Bun workspace configuration
 ```
+
+The Go modules (`apps/api`, `packages/core`) have no `package.json`. Turborepo reads them from `go.work` and derives their tasks, so you target a module by its directory or by its module path:
+
+```bash
+turbo run build --filter=./apps/api
+turbo run build --filter=github.com/PunGrumpy/pigo/apps/api
+```
+
+`turbo run test` and `turbo run lint` cover every Go module in one pass, through a package Turborepo names `go-workspace`. Filtering to a single module runs `go test ./...` inside that module instead.
+
+Vercel builds both apps without `turbo`. The flag makes Turborepo shell out to `go work edit -json` on every invocation, so a Next.js build image with no Go toolchain can no longer run it. Each app's `vercel.json` sets an explicit `buildCommand` that skips Turborepo, and the Go one writes to `$VERCEL_OUTPUT_FILE` so the platform finds the binary wherever the build runs from.
 
 ## Getting started
 
@@ -39,7 +53,6 @@ Make sure you have the following installed:
 
 - [Go](https://go.dev/doc/install) (1.26 or later)
 - [Bun](https://bun.sh) (1.3.14 or later)
-- [Air](https://github.com/air-verse/air), optional, for API hot-reloading
 
 ### Installation
 
