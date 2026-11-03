@@ -7,6 +7,8 @@ import type { OptimizerActions, OptimizerState } from "@/hooks/use-optimizer";
 import { useOptimizer } from "@/hooks/use-optimizer";
 import { ACCEPTED_MIME_TYPES } from "@/lib/image/constants";
 
+const FILE_INPUT_ACCEPT = [...ACCEPTED_MIME_TYPES, ".heic", ".heif"].join(",");
+
 type OptimizerActionsContextType = OptimizerActions & {
   readonly openFilePicker: () => void;
 };
@@ -38,7 +40,7 @@ export const OptimizerProvider = ({ children }: PropsWithChildren) => {
       </OptimizerStateContext.Provider>
       <input
         ref={inputRef}
-        accept={ACCEPTED_MIME_TYPES.join(",")}
+        accept={FILE_INPUT_ACCEPT}
         aria-label="Select images to optimize"
         className="sr-only"
         multiple

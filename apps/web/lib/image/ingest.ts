@@ -1,8 +1,9 @@
 import { readPreview } from "@/lib/compress/browser";
 import { MAX_CONCURRENT_JOBS, runWithConcurrency } from "@/lib/compress/pool";
 import { parseJpegExif } from "@/lib/image/exif";
-import { formatFromMime } from "@/lib/image/format";
-import type { ImageFormat, ImageJob } from "@/lib/image/types";
+import { inputFormatOf } from "@/lib/image/format";
+import { decodeHeic } from "@/lib/image/heic";
+import type { ImageJob, InputFormat } from "@/lib/image/types";
 import { validateDimensions, validateFile } from "@/lib/image/validation";
 
 interface IngestResult {
@@ -12,7 +13,7 @@ interface IngestResult {
 
 interface AcceptedFile {
   file: File;
-  inputFormat: ImageFormat;
+  inputFormat: InputFormat;
 }
 
 const acceptFiles = (
@@ -30,7 +31,7 @@ const acceptFiles = (
       continue;
     }
 
-    const inputFormat = formatFromMime(file.type);
+    const inputFormat = inputFormatOf(file);
     if (!inputFormat) {
       messages.push(`${file.name} is not a supported image.`);
       continue;
@@ -45,10 +46,11 @@ const acceptFiles = (
 
 const jobFromFile = async (
   file: File,
-  inputFormat: ImageFormat
+  inputFormat: InputFormat
 ): Promise<ImageJob | string> => {
   try {
-    const preview = await readPreview(file);
+    const source = inputFormat === "heic" ? await decodeHeic(file) : file;
+    const preview = await readPreview(source);
     const dimensionError = validateDimensions(
       preview.width,
       preview.height,
@@ -61,24 +63,26 @@ const jobFromFile = async (
       return dimensionError;
     }
 
-    const exif = file.type === "image/jpeg" ? await parseJpegExif(file) : null;
+    const exif = inputFormat === "jpeg" ? await parseJpegExif(file) : null;
 
     return {
       exif,
-      file,
+      file: source,
       height: preview.height,
       id: crypto.randomUUID(),
       inputFormat,
       name: file.name,
       originalSize: file.size,
-      originalUrl: URL.createObjectURL(file),
+      originalUrl: URL.createObjectURL(source),
       slider: 50,
       status: "queued",
       thumbnailUrl: preview.thumbnailUrl,
       width: preview.width,
     };
   } catch {
-    return `${file.name} could not be decoded by the browser.`;
+    return inputFormat === "heic"
+      ? `${file.name} could not be decoded as HEIC.`
+      : `${file.name} could not be decoded by the browser.`;
   }
 };
 

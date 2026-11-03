@@ -1,5 +1,7 @@
+import { mimeFromFormat, resolveOutputFormat } from "@/lib/image/format";
 import type {
   CompressionOptions,
+  ImageFormat,
   ImageJob,
   ImageResult,
 } from "@/lib/image/types";
@@ -28,27 +30,29 @@ const draw2d = (
 };
 
 /**
- * Encodes a bitmap to WebP off the main thread where possible.
+ * Encodes a bitmap to JPEG, PNG, or WebP off the main thread where possible.
  *
  * `OffscreenCanvas.convertToBlob` hands the encode to a browser-managed thread;
  * `HTMLCanvasElement.toBlob` is the async fallback. Both beat `toDataURL`, which
  * blocks the main thread for the whole encode and pays a base64 round trip on
  * top of it.
  */
-const encodeWebp = async (
+const encodeBitmap = async (
   bitmap: ImageBitmap,
+  format: ImageFormat,
   width: number,
   height: number,
   quality: number
 ): Promise<Blob> => {
   const normalized = clampQuality(quality);
+  const type = mimeFromFormat(format);
 
   if (typeof OffscreenCanvas === "function") {
     const canvas = new OffscreenCanvas(width, height);
     draw2d(canvas, bitmap, width, height);
     return await canvas.convertToBlob({
       quality: normalized,
-      type: "image/webp",
+      type,
     });
   }
 
@@ -65,9 +69,9 @@ const encodeWebp = async (
           resolve(blob);
           return;
         }
-        reject(new Error("This browser could not encode WebP."));
+        reject(new Error(`This browser could not encode ${format}.`));
       },
-      "image/webp",
+      type,
       normalized
     );
   });
@@ -89,8 +93,9 @@ export const readPreview = async (file: File): Promise<ImagePreview> => {
 
   try {
     const scale = Math.min(1, THUMBNAIL_MAX_EDGE / Math.max(width, height));
-    const blob = await encodeWebp(
+    const blob = await encodeBitmap(
       bitmap,
+      "webp",
       Math.max(1, Math.round(width * scale)),
       Math.max(1, Math.round(height * scale)),
       THUMBNAIL_QUALITY
@@ -154,8 +159,13 @@ export const compressWithBrowser = async (
 
   try {
     const target = targetDimensions(bitmap.width, bitmap.height, options);
-    const blob = await encodeWebp(
+    const outputFormat = resolveOutputFormat(
+      job.inputFormat,
+      options.outputFormat
+    );
+    const blob = await encodeBitmap(
       bitmap,
+      outputFormat,
       target.width,
       target.height,
       options.quality / 100
@@ -165,7 +175,7 @@ export const compressWithBrowser = async (
       blob,
       elapsedMs: Math.round(performance.now() - start),
       height: target.height,
-      outputFormat: "webp",
+      outputFormat,
       size: blob.size,
       url: URL.createObjectURL(blob),
       width: target.width,

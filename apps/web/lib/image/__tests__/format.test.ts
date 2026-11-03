@@ -5,6 +5,8 @@ import {
   buildDownloadName,
   formatBytes,
   formatSavings,
+  inputFormatOf,
+  resolveOutputFormat,
   shouldUseBrowserEncoder,
 } from "../format";
 
@@ -34,7 +36,52 @@ describe("formatSavings", () => {
   });
 });
 
+const fileOf = (name: string, type: string) => new File([""], name, { type });
+
+describe("inputFormatOf", () => {
+  it("maps supported MIME types", () => {
+    expect(inputFormatOf(fileOf("a.jpg", "image/jpeg"))).toBe("jpeg");
+    expect(inputFormatOf(fileOf("a.png", "image/png"))).toBe("png");
+    expect(inputFormatOf(fileOf("a.webp", "image/webp"))).toBe("webp");
+  });
+
+  it("treats image/heic and image/heif as heic", () => {
+    expect(inputFormatOf(fileOf("a.heic", "image/heic"))).toBe("heic");
+    expect(inputFormatOf(fileOf("a.heif", "image/heif"))).toBe("heic");
+  });
+
+  it("falls back to the extension when the MIME type is empty", () => {
+    expect(inputFormatOf(fileOf("IMG_1.HEIC", ""))).toBe("heic");
+    expect(inputFormatOf(fileOf("IMG_2.heif", ""))).toBe("heic");
+  });
+
+  it("returns null for unsupported files", () => {
+    expect(inputFormatOf(fileOf("a.gif", "image/gif"))).toBeNull();
+    expect(inputFormatOf(fileOf("a.txt", ""))).toBeNull();
+  });
+});
+
+describe("resolveOutputFormat", () => {
+  it("keeps the input format for same on encodable inputs", () => {
+    expect(resolveOutputFormat("png", "same")).toBe("png");
+  });
+
+  it("resolves same on heic to jpeg", () => {
+    expect(resolveOutputFormat("heic", "same")).toBe("jpeg");
+  });
+
+  it("honors an explicit choice", () => {
+    expect(resolveOutputFormat("heic", "webp")).toBe("webp");
+  });
+});
+
 describe("shouldUseBrowserEncoder", () => {
+  it("never sends heic to the API", () => {
+    expect(shouldUseBrowserEncoder("heic", "jpeg")).toBe(true);
+    expect(shouldUseBrowserEncoder("heic", "png")).toBe(true);
+    expect(shouldUseBrowserEncoder("heic", "same")).toBe(true);
+  });
+
   it("uses browser encoder for webp same-format output", () => {
     expect(shouldUseBrowserEncoder("webp", "same")).toBe(true);
   });
@@ -61,6 +108,12 @@ describe("apiOutputFormat", () => {
       /encoded in the browser/u
     );
     expect(() => apiOutputFormat("webp", "same")).toThrow(
+      /encoded in the browser/u
+    );
+  });
+
+  it("rejects heic input for the API", () => {
+    expect(() => apiOutputFormat("heic", "jpeg")).toThrow(
       /encoded in the browser/u
     );
   });

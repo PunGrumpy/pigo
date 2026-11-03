@@ -1,8 +1,7 @@
-import type { ACCEPTED_MIME_TYPES } from "./constants";
 import type { ExifData } from "./exif";
 
-export type AcceptedMimeType = (typeof ACCEPTED_MIME_TYPES)[number];
 export type ImageFormat = "jpeg" | "png" | "webp";
+export type InputFormat = ImageFormat | "heic";
 export type OutputChoice = "same" | ImageFormat;
 export type JobStatus = "queued" | "processing" | "done" | "error";
 
@@ -36,9 +35,10 @@ export interface ImageResult {
 
 export interface ImageJob {
   id: string;
+  // The decodable source the pipeline reads; a JPEG decoded at ingest for HEIC.
   file: File;
   name: string;
-  inputFormat: ImageFormat;
+  inputFormat: InputFormat;
   originalUrl: string;
   // Small standalone decode for the queue rows; null when encoding failed.
   thumbnailUrl: string | null;

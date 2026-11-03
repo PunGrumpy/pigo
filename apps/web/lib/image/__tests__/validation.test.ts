@@ -11,6 +11,15 @@ describe("validateFile", () => {
     expect(validateFile(file("a.jpg", "image/jpeg", 100), 0)).toBeNull();
   });
 
+  it("accepts HEIC by MIME type", () => {
+    expect(validateFile(file("a.heic", "image/heic", 100), 0)).toBeNull();
+    expect(validateFile(file("a.heif", "image/heif", 100), 0)).toBeNull();
+  });
+
+  it("accepts HEIC by extension when the MIME type is empty", () => {
+    expect(validateFile(file("IMG_1.HEIC", "", 100), 0)).toBeNull();
+  });
+
   it("rejects when queue is full", () => {
     expect(validateFile(file("a.jpg", "image/jpeg", 100), MAX_FILES)).toContain(
       `up to ${MAX_FILES} files`
@@ -19,7 +28,7 @@ describe("validateFile", () => {
 
   it("rejects unsupported mime types", () => {
     expect(validateFile(file("a.gif", "image/gif", 100), 0)).toMatch(
-      /not a JPEG, PNG, or WebP/u
+      /not a JPEG, PNG, WebP, or HEIC image\./u
     );
   });
 
