@@ -12,6 +12,7 @@ import {
   useOptimizerState,
 } from "@/components/providers/optimizer-provider";
 import { Status } from "@/components/status";
+import { resolveOutputFormat } from "@/lib/image/format";
 import { cn } from "@/lib/utils";
 
 import { Social } from "./social";
@@ -32,7 +33,9 @@ const QueueContent = () => {
           <span className="text-label-13 font-medium text-gray-1000">
             Select or drop images
           </span>
-          <span className="text-label-12 text-gray-800">PNG, JPEG, WebP</span>
+          <span className="text-label-12 text-gray-800">
+            PNG, JPEG, WebP, HEIC
+          </span>
         </div>
       </button>
     );
@@ -58,11 +61,10 @@ const QueueContent = () => {
           job={job}
           key={job.id}
           selected={selectedId === job.id}
-          targetFormat={
-            options.outputFormat === "same"
-              ? job.inputFormat
-              : options.outputFormat
-          }
+          targetFormat={resolveOutputFormat(
+            job.inputFormat,
+            options.outputFormat
+          )}
           onSelect={setSelectedId}
         />
       ))}

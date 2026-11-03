@@ -49,7 +49,7 @@ export const OptimizerPreviewPanel = () => {
             Drop or select images to start compressing
           </p>
           <p className="text-[12px] text-gray-800">
-            JPEG, PNG, or WebP up to {formatBytes(MAX_FILE_SIZE)}
+            JPEG, PNG, WebP, or HEIC up to {formatBytes(MAX_FILE_SIZE)}
           </p>
         </div>
       )}

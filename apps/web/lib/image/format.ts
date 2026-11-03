@@ -1,4 +1,4 @@
-import type { ImageFormat, OutputChoice } from "./types";
+import type { ImageFormat, InputFormat, OutputChoice } from "./types";
 
 export const formatBytes = (bytes: number) => {
   if (!Number.isFinite(bytes) || bytes <= 0) {
@@ -24,17 +24,25 @@ export const formatSavings = (originalSize: number, compressedSize: number) => {
   return `${sign}${Math.abs(delta).toFixed(1)}%`;
 };
 
-export const formatFromMime = (type: string): ImageFormat | null => {
-  if (type === "image/jpeg") {
-    return "jpeg";
+const INPUT_FORMAT_BY_MIME: Record<string, InputFormat> = {
+  "image/heic": "heic",
+  "image/heif": "heic",
+  "image/jpeg": "jpeg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+
+const HEIC_EXTENSION = /\.(?:heic|heif)$/iu;
+
+export const formatFromMime = (type: string): InputFormat | null =>
+  INPUT_FORMAT_BY_MIME[type] ?? null;
+
+export const inputFormatOf = (file: File): InputFormat | null => {
+  const fromMime = formatFromMime(file.type);
+  if (fromMime) {
+    return fromMime;
   }
-  if (type === "image/png") {
-    return "png";
-  }
-  if (type === "image/webp") {
-    return "webp";
-  }
-  return null;
+  return HEIC_EXTENSION.test(file.name) ? "heic" : null;
 };
 
 export const mimeFromFormat = (format: ImageFormat) => {
@@ -50,24 +58,31 @@ export const mimeFromFormat = (format: ImageFormat) => {
 const extensionForFormat = (format: ImageFormat) =>
   format === "jpeg" ? "jpg" : format;
 
-const resolveOutputFormat = (
-  inputFormat: ImageFormat,
+export const resolveOutputFormat = (
+  inputFormat: InputFormat,
   outputChoice: OutputChoice
-): ImageFormat => (outputChoice === "same" ? inputFormat : outputChoice);
+): ImageFormat => {
+  if (outputChoice !== "same") {
+    return outputChoice;
+  }
+  return inputFormat === "heic" ? "jpeg" : inputFormat;
+};
 
 export const shouldUseBrowserEncoder = (
-  inputFormat: ImageFormat,
+  inputFormat: InputFormat,
   outputChoice: OutputChoice
-) => resolveOutputFormat(inputFormat, outputChoice) === "webp";
+) =>
+  inputFormat === "heic" ||
+  resolveOutputFormat(inputFormat, outputChoice) === "webp";
 
 export type ApiOutputFormat = "same" | "jpeg" | "png";
 
 export const apiOutputFormat = (
-  inputFormat: ImageFormat,
+  inputFormat: InputFormat,
   outputChoice: OutputChoice
 ): ApiOutputFormat => {
   if (shouldUseBrowserEncoder(inputFormat, outputChoice)) {
-    throw new Error("WebP output is encoded in the browser.");
+    throw new Error("HEIC input and WebP output are encoded in the browser.");
   }
 
   if (outputChoice === "jpeg" || outputChoice === "png") {

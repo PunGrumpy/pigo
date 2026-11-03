@@ -7,6 +7,7 @@ A minimal-dependency, minimal-configuration image optimizer with a Go API backen
 ## Features
 
 - **Hybrid optimization**: The browser encodes WebP through the Canvas API, and the Go backend compresses and resizes JPEG and PNG.
+- **HEIC and HEIF input**: iPhone photos are decoded in the browser and converted to JPEG, PNG, or WebP without leaving your device.
 - **Go API backend**: A REST server built on the standard library's JPEG and PNG codecs, with Catmull-Rom interpolation for resizing.
 - **Next.js frontend**: Drag-and-drop uploads, clipboard paste, ZIP downloads, and a before/after comparison slider.
 - **Zero heavy runtime dependencies**: The backend builds and runs without C libraries, GraphicsMagick, or libvips.

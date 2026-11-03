@@ -11,6 +11,8 @@ export const ACCEPTED_MIME_TYPES = [
   "image/jpeg",
   "image/png",
   "image/webp",
+  "image/heic",
+  "image/heif",
 ] as const;
 
 export const DEFAULT_COMPRESSION_OPTIONS = {
