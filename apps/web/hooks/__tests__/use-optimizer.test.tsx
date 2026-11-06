@@ -16,7 +16,11 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 // the shared module registry entry for the whole test run, not just this
 // file, and other suites (e.g. browser.test.ts) import the same file and need
 // those real exports to keep working.
-import { readPreview, targetDimensions } from "@/lib/compress/browser";
+import {
+  assertTargetWithinLimits,
+  readPreview,
+  targetDimensions,
+} from "@/lib/compress/browser";
 import type {
   CompressionOptions,
   ImageJob,
@@ -112,6 +116,7 @@ mock.module("@/lib/compress/api", () => ({
 }));
 
 mock.module("@/lib/compress/browser", () => ({
+  assertTargetWithinLimits,
   compressWithBrowser: compressWithBrowserMock,
   readPreview,
   targetDimensions,

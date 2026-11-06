@@ -1,3 +1,4 @@
+import { MAX_DIMENSION, MAX_PIXELS } from "@/lib/image/constants";
 import { mimeFromFormat, resolveOutputFormat } from "@/lib/image/format";
 import type {
   CompressionOptions,
@@ -17,7 +18,8 @@ const draw2d = (
   canvas: HTMLCanvasElement | OffscreenCanvas,
   bitmap: ImageBitmap,
   width: number,
-  height: number
+  height: number,
+  format: ImageFormat
 ) => {
   const context = canvas.getContext("2d") as
     | CanvasRenderingContext2D
@@ -25,6 +27,13 @@ const draw2d = (
     | null;
   if (!context) {
     throw new Error("Canvas is unavailable in this browser.");
+  }
+  context.imageSmoothingQuality = "high";
+  if (format === "jpeg") {
+    // JPEG has no alpha channel and canvas flattens transparency to black. The
+    // Go path flattens to white, so match it.
+    context.fillStyle = "#fff";
+    context.fillRect(0, 0, width, height);
   }
   context.drawImage(bitmap, 0, 0, width, height);
 };
@@ -49,7 +58,7 @@ const encodeBitmap = async (
 
   if (typeof OffscreenCanvas === "function") {
     const canvas = new OffscreenCanvas(width, height);
-    draw2d(canvas, bitmap, width, height);
+    draw2d(canvas, bitmap, width, height, format);
     return await canvas.convertToBlob({
       quality: normalized,
       type,
@@ -59,7 +68,7 @@ const encodeBitmap = async (
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
-  draw2d(canvas, bitmap, width, height);
+  draw2d(canvas, bitmap, width, height, format);
 
   // oxlint-disable-next-line promise/avoid-new
   return await new Promise<Blob>((resolve, reject) => {
@@ -150,6 +159,18 @@ export const targetDimensions = (
   };
 };
 
+// Mirrors the limits and wording in packages/core/resize.go.
+export const assertTargetWithinLimits = (width: number, height: number) => {
+  if (width * height > MAX_PIXELS) {
+    throw new Error("resized image exceeds the 100MP pixel limit");
+  }
+  if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+    throw new Error(
+      `resized image exceeds the ${MAX_DIMENSION} pixel per-side limit`
+    );
+  }
+};
+
 export const compressWithBrowser = async (
   job: ImageJob,
   options: CompressionOptions
@@ -159,6 +180,7 @@ export const compressWithBrowser = async (
 
   try {
     const target = targetDimensions(bitmap.width, bitmap.height, options);
+    assertTargetWithinLimits(target.width, target.height);
     const outputFormat = resolveOutputFormat(
       job.inputFormat,
       options.outputFormat
