@@ -195,15 +195,19 @@ type Hook = ReturnType<
   typeof renderHook<ReturnType<typeof useOptimizer>, unknown>
 >;
 
-// Applies a settings change the way the UI does and waits for it to land.
-const changeOptions = async (
-  hook: Hook,
-  patch: Partial<CompressionOptions>
-) => {
-  await act(() => {
-    hook.result.current.actions.patchOptions(patch);
-    hook.result.current.actions.applyOptions();
-  });
+// Patches settings and lets the debounce fire, the way the UI applies them.
+const changeOptions = (hook: Hook, patch: Partial<CompressionOptions>) => {
+  jest.useFakeTimers();
+  try {
+    act(() => {
+      hook.result.current.actions.patchOptions(patch);
+    });
+    act(() => {
+      jest.advanceTimersByTime(300);
+    });
+  } finally {
+    jest.useRealTimers();
+  }
 };
 
 const addOneJobAndFinish = async (hook: Hook) => {
@@ -259,9 +263,17 @@ describe("useOptimizer", () => {
     });
     expect(compressCalls).toHaveLength(1);
 
-    await act(() => {
-      result.current.actions.applyOptions();
-    });
+    jest.useFakeTimers();
+    try {
+      act(() => {
+        result.current.actions.patchOptions({ outputFormat: "jpeg" });
+      });
+      act(() => {
+        jest.advanceTimersByTime(300);
+      });
+    } finally {
+      jest.useRealTimers();
+    }
     // The aborted run holds its slot, so the new run waits for it to settle.
     expect(compressCalls).toHaveLength(1);
     expect(compressCalls[0]?.signal?.aborted).toBe(true);
@@ -604,7 +616,7 @@ describe("useOptimizer", () => {
     );
 
     const callsBefore = compressCalls.length;
-    await changeOptions(hook, { quality: 40 });
+    changeOptions(hook, { quality: 40 });
 
     expect(compressCalls).toHaveLength(callsBefore);
     expect(firstJob(hook.result.current.state.jobs).status).toBe("done");
@@ -614,7 +626,7 @@ describe("useOptimizer", () => {
     const hook = renderHook(() => useOptimizer());
     await addOneJobAndFinish(hook);
 
-    await changeOptions(hook, { outputFormat: "jpeg" });
+    changeOptions(hook, { outputFormat: "jpeg" });
     await act(async () => {
       compressCalls[1]?.deferred.resolve(makeResult());
       await Promise.resolve();
@@ -624,7 +636,7 @@ describe("useOptimizer", () => {
     });
 
     const callsBefore = compressCalls.length;
-    await changeOptions(hook, { quality: 40 });
+    changeOptions(hook, { quality: 40 });
 
     expect(compressCalls).toHaveLength(callsBefore + 1);
   });
@@ -652,7 +664,7 @@ describe("useOptimizer", () => {
     expect(firstJob(hook.result.current.state.jobs).result).toBeUndefined();
 
     const callsBefore = compressCalls.length;
-    await changeOptions(hook, { quality: 40 });
+    changeOptions(hook, { quality: 40 });
 
     expect(compressCalls).toHaveLength(callsBefore + 1);
   });
@@ -662,7 +674,7 @@ describe("useOptimizer", () => {
     await addOneJobAndFinish(hook);
     const previous = firstJob(hook.result.current.state.jobs).result;
 
-    await changeOptions(hook, { outputFormat: "jpeg" });
+    changeOptions(hook, { outputFormat: "jpeg" });
 
     const processing = firstJob(hook.result.current.state.jobs);
     expect(processing.status).toBe("processing");
@@ -684,7 +696,7 @@ describe("useOptimizer", () => {
       expect(firstJob(hook.result.current.state.jobs).status).toBe("done");
     });
 
-    await changeOptions(hook, { outputFormat: "jpeg" });
+    changeOptions(hook, { outputFormat: "jpeg" });
     expect(revokeSpy.mock.calls.map((call) => call[0])).not.toContain(
       "blob:old"
     );
@@ -721,10 +733,10 @@ describe("useOptimizer", () => {
       expect(firstJob(hook.result.current.state.jobs).status).toBe("done");
     });
 
-    await changeOptions(hook, { outputFormat: "jpeg" });
+    changeOptions(hook, { outputFormat: "jpeg" });
     expect(firstJob(hook.result.current.state.jobs).status).toBe("processing");
 
-    await changeOptions(hook, { outputFormat: "same" });
+    changeOptions(hook, { outputFormat: "same" });
     const restored = firstJob(hook.result.current.state.jobs);
     expect(restored.status).toBe("done");
     expect(restored.result?.url).toBe("blob:kept");
@@ -759,7 +771,7 @@ describe("useOptimizer", () => {
       expect(firstJob(hook.result.current.state.jobs).status).toBe("done");
     });
 
-    await changeOptions(hook, { outputFormat: "jpeg" });
+    changeOptions(hook, { outputFormat: "jpeg" });
     await act(async () => {
       compressCalls[1]?.deferred.reject(new Error("boom"));
       await Promise.resolve();
@@ -773,5 +785,60 @@ describe("useOptimizer", () => {
     expect(revokeSpy.mock.calls.map((call) => call[0])).toContain("blob:stale");
 
     revokeSpy.mockRestore();
+  });
+
+  it("applies a format change after the debounce with no further call", async () => {
+    const hook = renderHook(() => useOptimizer());
+    await addOneJobAndFinish(hook);
+    const callsBefore = compressCalls.length;
+
+    jest.useFakeTimers();
+    try {
+      act(() => {
+        hook.result.current.actions.patchOptions({ outputFormat: "webp" });
+      });
+      expect(compressCalls).toHaveLength(callsBefore);
+
+      act(() => {
+        jest.advanceTimersByTime(300);
+      });
+      expect(compressCalls).toHaveLength(callsBefore + 1);
+    } finally {
+      jest.useRealTimers();
+    }
+    expect(compressCalls.at(-1)?.options.outputFormat).toBe("webp");
+  });
+
+  it("applies resize settings after the debounce", async () => {
+    const hook = renderHook(() => useOptimizer());
+    await addOneJobAndFinish(hook);
+    const callsBefore = compressCalls.length;
+
+    changeOptions(hook, { resizeEnabled: true, resizeWidth: 50 });
+
+    expect(compressCalls).toHaveLength(callsBefore + 1);
+    expect(compressCalls.at(-1)?.options.resizeWidth).toBe(50);
+  });
+
+  it("collapses a burst of patches into one pass", async () => {
+    const hook = renderHook(() => useOptimizer());
+    await addOneJobAndFinish(hook);
+    const callsBefore = compressCalls.length;
+
+    jest.useFakeTimers();
+    try {
+      act(() => {
+        hook.result.current.actions.patchOptions({ outputFormat: "webp" });
+        hook.result.current.actions.patchOptions({ quality: 60 });
+      });
+      act(() => {
+        jest.advanceTimersByTime(300);
+      });
+    } finally {
+      jest.useRealTimers();
+    }
+
+    expect(compressCalls).toHaveLength(callsBefore + 1);
+    expect(compressCalls.at(-1)?.options.quality).toBe(60);
   });
 });

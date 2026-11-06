@@ -3,7 +3,8 @@
 import { Button } from "@vercel/geistdocs/components/button";
 import { Input } from "@vercel/geistdocs/components/input";
 import { Spinner } from "@vercel/geistdocs/components/spinner";
-import { Download, FileArchive, RefreshCw, Info } from "lucide-react";
+import { Download, FileArchive, Info } from "lucide-react";
+import { useState } from "react";
 
 import { OptimizerMetadataGrid } from "@/components/optimizer-metadata-grid";
 import {
@@ -13,32 +14,78 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { MAX_DIMENSION } from "@/lib/image/constants";
 import { formatBytes, formatSavings } from "@/lib/image/format";
-import type { CompressionOptions } from "@/lib/image/types";
 import { cn } from "@/lib/utils";
+
+const DIMENSION_INPUT_CLASS = cn(
+  "peer h-9 w-full min-w-0 cursor-pointer appearance-none truncate rounded-md border-none bg-background-100 text-label-14 text-gray-1000 shadow-[0_0_0_1px_var(--ds-gray-alpha-400)] outline-none transition-[box-shadow,color] duration-150",
+  "hover:shadow-[0_0_0_1px_var(--ds-gray-alpha-500)]",
+  "focus:outline-none focus-visible:shadow-[var(--ds-focus-ring)]",
+  "disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-700 disabled:shadow-[0_0_0_1px_var(--ds-gray-alpha-400)]"
+);
+
+interface DimensionInputProps {
+  id: string;
+  label: string;
+  value: number;
+  placeholder: string;
+  onCommit: (value: number) => void;
+}
+
+// Typing is held locally and applied on blur or Enter, so entering 1920 does
+// not resize to 1 and then 19 on the way.
+const DimensionInput = ({
+  id,
+  label,
+  value,
+  placeholder,
+  onCommit,
+}: DimensionInputProps) => {
+  const [draft, setDraft] = useState<string | null>(null);
+
+  const commit = () => {
+    if (draft === null) {
+      return;
+    }
+    setDraft(null);
+    onCommit(Number(draft) || 0);
+  };
+
+  return (
+    <label className="flex flex-col gap-1" htmlFor={id}>
+      <span className="text-[11px] text-gray-800">{label}</span>
+      <Input
+        className={DIMENSION_INPUT_CLASS}
+        id={id}
+        max={MAX_DIMENSION}
+        min="1"
+        placeholder={placeholder}
+        type="number"
+        value={draft ?? (value || "")}
+        onBlur={commit}
+        onChange={(event) => setDraft(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            commit();
+          }
+        }}
+      />
+    </label>
+  );
+};
 
 export const OptimizerControlsPanel = () => {
   const {
     completedJobs,
-    isProcessing,
-    jobs,
     options,
-    optionsDirty,
     selectedJob,
     totalCompressed,
     totalOriginal,
     zipGenerating,
     zipProgress,
   } = useOptimizerState();
-  const { applyOptions, downloadAll, patchOptions } = useOptimizerActions();
+  const { downloadAll, patchOptions } = useOptimizerActions();
 
   const completedCount = completedJobs.length;
-  const jobCount = jobs.length;
-  let applyLabel = "Recompress";
-  if (isProcessing) {
-    applyLabel = "Compressing…";
-  } else if (optionsDirty) {
-    applyLabel = "Apply Settings";
-  }
 
   const saved = totalCompressed <= totalOriginal;
   const multipleDownloads = completedCount > 1;
@@ -167,71 +214,28 @@ export const OptimizerControlsPanel = () => {
               checked={options.resizeEnabled}
               id="resize-enabled"
               label="Resize Image"
-              onChange={(event) => {
-                const enabled = event.target.checked;
-                const patch: Partial<CompressionOptions> = {
-                  resizeEnabled: enabled,
-                };
-                if (enabled && selectedJob) {
-                  patch.resizeWidth = selectedJob.width;
-                  patch.resizeHeight = selectedJob.height;
-                }
-                patchOptions(patch);
-              }}
+              onChange={(event) =>
+                patchOptions({ resizeEnabled: event.target.checked })
+              }
             />
 
             {options.resizeEnabled && (
               <div className="mt-2 flex flex-col gap-3">
                 <div className="grid grid-cols-2 gap-2">
-                  <label className="flex flex-col gap-1" htmlFor="resize-width">
-                    <span className="text-[11px] text-gray-800">
-                      Width (px)
-                    </span>
-                    <Input
-                      id="resize-width"
-                      max={MAX_DIMENSION}
-                      min="1"
-                      type="number"
-                      className={cn(
-                        "peer h-9 w-full min-w-0 cursor-pointer appearance-none truncate rounded-md border-none bg-background-100 text-label-14 text-gray-1000 shadow-[0_0_0_1px_var(--ds-gray-alpha-400)] outline-none transition-[box-shadow,color] duration-150",
-                        "hover:shadow-[0_0_0_1px_var(--ds-gray-alpha-500)]",
-                        "focus:outline-none focus-visible:shadow-[var(--ds-focus-ring)]",
-                        "disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-700 disabled:shadow-[0_0_0_1px_var(--ds-gray-alpha-400)]"
-                      )}
-                      value={options.resizeWidth || ""}
-                      onChange={(event) =>
-                        patchOptions({
-                          resizeWidth: Number(event.target.value) || 0,
-                        })
-                      }
-                    />
-                  </label>
-                  <label
-                    className="flex flex-col gap-1"
-                    htmlFor="resize-height"
-                  >
-                    <span className="text-[11px] text-gray-800">
-                      Height (px)
-                    </span>
-                    <Input
-                      id="resize-height"
-                      className={cn(
-                        "peer h-9 w-full min-w-0 cursor-pointer appearance-none truncate rounded-md border-none bg-background-100 text-label-14 text-gray-1000 shadow-[0_0_0_1px_var(--ds-gray-alpha-400)] outline-none transition-[box-shadow,color] duration-150",
-                        "hover:shadow-[0_0_0_1px_var(--ds-gray-alpha-500)]",
-                        "focus:outline-none focus-visible:shadow-[var(--ds-focus-ring)]",
-                        "disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-700 disabled:shadow-[0_0_0_1px_var(--ds-gray-alpha-400)]"
-                      )}
-                      max={MAX_DIMENSION}
-                      min="1"
-                      type="number"
-                      value={options.resizeHeight || ""}
-                      onChange={(event) =>
-                        patchOptions({
-                          resizeHeight: Number(event.target.value) || 0,
-                        })
-                      }
-                    />
-                  </label>
+                  <DimensionInput
+                    id="resize-width"
+                    label="Width (px)"
+                    placeholder={String(selectedJob?.width ?? "")}
+                    value={options.resizeWidth}
+                    onCommit={(resizeWidth) => patchOptions({ resizeWidth })}
+                  />
+                  <DimensionInput
+                    id="resize-height"
+                    label="Height (px)"
+                    placeholder={String(selectedJob?.height ?? "")}
+                    value={options.resizeHeight}
+                    onCommit={(resizeHeight) => patchOptions({ resizeHeight })}
+                  />
                 </div>
                 <Checkbox
                   checked={options.maintainAspect}
@@ -260,23 +264,6 @@ export const OptimizerControlsPanel = () => {
       </div>
 
       <div className="flex shrink-0 flex-col gap-2 border-t border-gray-alpha-400 p-4 bg-background-200">
-        <Button
-          disabled={
-            jobCount === 0 ||
-            isProcessing ||
-            (!optionsDirty && completedCount > 0)
-          }
-          type="button"
-          variant="ghost"
-          onClick={applyOptions}
-          className="w-full flex items-center justify-center gap-2"
-        >
-          <RefreshCw
-            aria-hidden="true"
-            className={cn("size-4", isProcessing && "animate-spin")}
-          />
-          {applyLabel}
-        </Button>
         <Button
           disabled={completedCount === 0 || zipGenerating}
           type="button"
