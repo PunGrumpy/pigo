@@ -18,10 +18,25 @@ import { cn } from "@/lib/utils";
 import { Social } from "./social";
 
 const QueueContent = () => {
-  const { jobs, filteredJobs, options, selectedId } = useOptimizerState();
+  const { ingest, jobs, filteredJobs, options, selectedId } =
+    useOptimizerState();
   const { openFilePicker, setSelectedId } = useOptimizerActions();
 
   if (jobs.length === 0) {
+    if (ingest) {
+      return (
+        <output className="flex min-h-[16rem] w-full flex-col items-center justify-center gap-3 text-center">
+          <Spinner
+            aria-label="Reading images"
+            className="size-5 text-gray-700"
+          />
+          <span className="text-label-13 font-medium text-gray-1000">
+            Reading {ingest.done} of {ingest.total} images…
+          </span>
+        </output>
+      );
+    }
+
     return (
       <button
         className="flex min-h-[16rem] w-full flex-col items-center justify-center gap-3 rounded-[6px] border border-dashed border-gray-alpha-400 bg-background-100 p-4 text-center hover:bg-gray-alpha-100 transition-colors duration-150"
@@ -75,6 +90,7 @@ const QueueContent = () => {
 export const OptimizerQueuePanel = () => {
   const { dropActive } = useDragDrop();
   const {
+    ingest,
     isProcessing,
     filteredJobs,
     notice,
@@ -117,6 +133,18 @@ export const OptimizerQueuePanel = () => {
               />
             )}
           </div>
+
+          {ingest && jobs.length > 0 && (
+            <output className="px-2 pt-1 pb-2 flex items-center gap-2 border-b border-gray-alpha-200 mb-1 text-[11px] text-gray-800 font-mono">
+              <Spinner
+                aria-label="Reading images"
+                className="size-3 text-gray-700"
+              />
+              <span>
+                Reading {ingest.done} of {ingest.total} images…
+              </span>
+            </output>
+          )}
 
           {isProcessing && jobs.length > 0 && (
             <div className="px-2 pt-1 pb-2 flex flex-col gap-1.5 border-b border-gray-alpha-200 mb-1">
@@ -162,7 +190,7 @@ export const OptimizerQueuePanel = () => {
         </Button>
         <Button
           className="w-full flex items-center justify-center gap-2"
-          disabled={jobs.length === 0}
+          disabled={jobs.length === 0 && !ingest}
           type="button"
           variant="ghost"
           onClick={clearAll}
