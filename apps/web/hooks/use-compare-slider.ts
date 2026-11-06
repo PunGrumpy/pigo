@@ -24,9 +24,10 @@ export const useCompareSlider = (
   const [slider, setSlider] = useState(job.slider);
   const prefersReducedMotion = usePrefersReducedMotion();
 
-  // Latest-ref mirrors so the reveal effect can key off the result URL alone —
-  // depending on `job`/`onSliderChange` would cancel the sweep on every
-  // unrelated context update (their identities change each render).
+  // Latest-ref mirrors so the reveal effect depends on whether a result exists
+  // and nothing else — depending on `job`/`onSliderChange` would cancel the
+  // sweep on every unrelated context update (their identities change each
+  // render).
   const jobRef = useRef(job);
   const onSliderChangeRef = useRef(onSliderChange);
   useEffect(() => {
@@ -48,11 +49,15 @@ export const useCompareSlider = (
     }
   }, []);
 
-  const resultUrl = job.result?.url ?? null;
+  const hasResult = Boolean(job.result);
+  // Set once a sweep finishes. Later results (a settings change) replace the
+  // image under the divider without moving it. Marked on completion rather
+  // than on start so a Strict Mode effect replay still runs the sweep.
+  const sweptRef = useRef(false);
 
-  // Reveal sweep when a new result arrives. Explanatory motion: 800ms easeOutQuart.
+  // Reveal sweep for the first result of this row. Explanatory motion: 800ms easeOutQuart.
   useEffect(() => {
-    if (!resultUrl) {
+    if (!hasResult || sweptRef.current) {
       return;
     }
 
@@ -73,6 +78,7 @@ export const useCompareSlider = (
       const eased = 1 - (1 - progress) ** 4;
       setSlider(Math.round(REVEAL_TARGET * eased));
       frameRef.current = progress < 1 ? requestAnimationFrame(step) : null;
+      sweptRef.current = progress >= 1;
     };
 
     frameRef.current = requestAnimationFrame(step);
@@ -83,7 +89,7 @@ export const useCompareSlider = (
         frameRef.current = null;
       }
     };
-  }, [prefersReducedMotion, resultUrl]);
+  }, [prefersReducedMotion, hasResult]);
 
   return { cancelReveal, commitSlider, setSlider, slider };
 };

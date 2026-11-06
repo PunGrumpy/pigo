@@ -11,10 +11,13 @@ import {
   DEFAULT_COMPRESSION_OPTIONS,
   sanitizeCompressionOptions,
 } from "@/lib/image/constants";
+import { encodingKey } from "@/lib/image/encoding-key";
 import { ingestFiles } from "@/lib/image/ingest";
 import { isJobPending } from "@/lib/image/job";
 import { revokeJobUrls } from "@/lib/image/revoke";
 import type { CompressionOptions, ImageJob } from "@/lib/image/types";
+
+const OPTIONS_APPLY_DELAY_MS = 300;
 
 export type FilterTab = "all" | "optimized" | "errors";
 
@@ -48,7 +51,7 @@ export const useOptimizer = () => {
   // Spans overlapping drops: it resets only once every claimed file settled.
   const ingestProgressRef = useRef<IngestProgress>({ done: 0, total: 0 });
   const schedulerRef = useRef<Scheduler<CompressionOptions> | null>(null);
-  const qualityApplyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+  const optionsApplyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
   const [jobs, setJobs] = useState<ImageJob[]>([]);
@@ -56,7 +59,6 @@ export const useOptimizer = () => {
   const [options, setOptions] = useState<CompressionOptions>({
     ...DEFAULT_COMPRESSION_OPTIONS,
   });
-  const [optionsDirty, setOptionsDirty] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [ingest, setIngest] = useState<IngestProgress | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -76,21 +78,21 @@ export const useOptimizer = () => {
     });
   }, [jobs, searchQuery, filterTab]);
 
-  const clearQualityTimer = useCallback(() => {
-    if (qualityApplyTimerRef.current) {
-      clearTimeout(qualityApplyTimerRef.current);
-      qualityApplyTimerRef.current = null;
+  const clearOptionsTimer = useCallback(() => {
+    if (optionsApplyTimerRef.current) {
+      clearTimeout(optionsApplyTimerRef.current);
+      optionsApplyTimerRef.current = null;
     }
   }, []);
 
   useEffect(
     () => () => {
-      clearQualityTimer();
+      clearOptionsTimer();
       for (const job of jobsRef.current) {
         revokeJobUrls(job);
       }
     },
-    [clearQualityTimer]
+    [clearOptionsTimer]
   );
 
   const selectedJob = useMemo(
@@ -153,14 +155,11 @@ export const useOptimizer = () => {
 
       const resolvedOptions = sanitizeCompressionOptions(nextOptions);
 
-      if (job.result?.url) {
-        URL.revokeObjectURL(job.result.url);
-      }
-
+      // The previous result stays up while the replacement encodes, so the
+      // preview does not blank and the divider keeps its place.
       updateJob(id, (current) => ({
         ...current,
         error: undefined,
-        result: undefined,
         status: "processing",
       }));
 
@@ -172,24 +171,37 @@ export const useOptimizer = () => {
           return;
         }
 
+        const previousUrl = jobsRef.current.find((entry) => entry.id === id)
+          ?.result?.url;
         updateJob(id, (current) => ({
           ...current,
           result,
           slider: current.slider || 50,
           status: "done",
         }));
+        if (previousUrl) {
+          URL.revokeObjectURL(previousUrl);
+        }
       } catch (error) {
         if (signal.aborted) {
           return;
         }
 
         const message = describeCompressionError(error);
+        const staleUrl = jobsRef.current.find((entry) => entry.id === id)
+          ?.result?.url;
 
+        // A failed run must not leave the old image shown or zipped as if it
+        // matched the new settings.
         updateJob(id, (current) => ({
           ...current,
           error: message,
+          result: undefined,
           status: "error",
         }));
+        if (staleUrl) {
+          URL.revokeObjectURL(staleUrl);
+        }
       }
     },
     [updateJob]
@@ -205,6 +217,30 @@ export const useOptimizer = () => {
     }
     return schedulerRef.current;
   }, [runJob]);
+
+  // A job whose kept result already has this key needs no encode. Cancelling
+  // also drops an in-flight run for other settings, so returning to the kept
+  // result's settings lands back on it.
+  const requestEncode = useCallback(
+    (id: string, resolved: CompressionOptions) => {
+      const job = jobsRef.current.find((entry) => entry.id === id);
+      if (!job) {
+        return;
+      }
+
+      const scheduler = getScheduler();
+      if (job.result?.settingsKey !== encodingKey(job, resolved)) {
+        scheduler.request(id, resolved);
+        return;
+      }
+
+      scheduler.cancel(id);
+      if (isJobPending(job)) {
+        updateJob(id, (current) => ({ ...current, status: "done" }));
+      }
+    },
+    [getScheduler, updateJob]
+  );
 
   const addFiles = useCallback(
     async (fileList: File[] | FileList) => {
@@ -278,23 +314,15 @@ export const useOptimizer = () => {
   const applyOptions = useCallback(() => {
     const resolved = sanitizeCompressionOptions(optionsRef.current);
     optionsRef.current = resolved;
-    clearQualityTimer();
-    setOptionsDirty(false);
     for (const job of jobsRef.current) {
-      getScheduler().request(job.id, resolved);
+      requestEncode(job.id, resolved);
     }
-  }, [clearQualityTimer, getScheduler]);
+  }, [requestEncode]);
 
-  const scheduleQualityApply = useCallback(() => {
-    clearQualityTimer();
-    qualityApplyTimerRef.current = setTimeout(() => {
-      qualityApplyTimerRef.current = null;
-      applyOptions();
-    }, 300);
-  }, [applyOptions, clearQualityTimer]);
-
+  // Every setting applies on its own after a short pause, so a slider drag or
+  // a burst of changes becomes one pass over the queue.
   const patchOptions = useCallback(
-    (patch: Partial<CompressionOptions>, autoApply = false) => {
+    (patch: Partial<CompressionOptions>) => {
       const next = sanitizeCompressionOptions({
         ...optionsRef.current,
         ...patch,
@@ -302,16 +330,13 @@ export const useOptimizer = () => {
       optionsRef.current = next;
       setOptions(next);
 
-      if (autoApply) {
-        queueMicrotask(() => applyOptions());
-      } else if ("quality" in patch && Object.keys(patch).length === 1) {
-        setOptionsDirty(false);
-        scheduleQualityApply();
-      } else {
-        setOptionsDirty(true);
-      }
+      clearOptionsTimer();
+      optionsApplyTimerRef.current = setTimeout(() => {
+        optionsApplyTimerRef.current = null;
+        applyOptions();
+      }, OPTIONS_APPLY_DELAY_MS);
     },
-    [applyOptions, scheduleQualityApply]
+    [applyOptions, clearOptionsTimer]
   );
 
   const removeJob = useCallback(
@@ -343,7 +368,6 @@ export const useOptimizer = () => {
     setIngest(null);
     commitJobs([]);
     setSelectedId(null);
-    setOptionsDirty(false);
     setNotice(null);
     getScheduler().cancelAll();
   }, [commitJobs, getScheduler]);
@@ -367,7 +391,6 @@ export const useOptimizer = () => {
   const actions = useMemo(
     () => ({
       addFiles,
-      applyOptions,
       clearAll,
       downloadAll: handleDownloadAll,
       downloadJob,
@@ -378,15 +401,7 @@ export const useOptimizer = () => {
       setSelectedId,
       updateJob,
     }),
-    [
-      addFiles,
-      applyOptions,
-      clearAll,
-      handleDownloadAll,
-      patchOptions,
-      removeJob,
-      updateJob,
-    ]
+    [addFiles, clearAll, handleDownloadAll, patchOptions, removeJob, updateJob]
   );
 
   const state = useMemo(
@@ -399,7 +414,6 @@ export const useOptimizer = () => {
       jobs,
       notice,
       options,
-      optionsDirty,
       processPercent,
       processedCount,
       searchQuery,
@@ -419,7 +433,6 @@ export const useOptimizer = () => {
       jobs,
       notice,
       options,
-      optionsDirty,
       processPercent,
       processedCount,
       searchQuery,

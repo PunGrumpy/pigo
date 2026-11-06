@@ -21,6 +21,7 @@ import {
   readPreview,
   targetDimensions,
 } from "@/lib/compress/browser";
+import { encodingKey } from "@/lib/image/encoding-key";
 import type { IngestHandlers } from "@/lib/image/ingest-stream";
 import type {
   CompressionOptions,
@@ -156,6 +157,7 @@ const makeResult = (overrides: Partial<ImageResult> = {}): ImageResult => {
     elapsedMs: 5,
     height: 100,
     outputFormat: "jpeg",
+    settingsKey: "test",
     size: 500,
     url: `blob:result-${resultUrlCounter}`,
     width: 100,
@@ -188,6 +190,38 @@ beforeEach(() => {
 afterAll(() => {
   mock.restore();
 });
+
+type Hook = ReturnType<
+  typeof renderHook<ReturnType<typeof useOptimizer>, unknown>
+>;
+
+// Patches settings and lets the debounce fire, the way the UI applies them.
+const changeOptions = (hook: Hook, patch: Partial<CompressionOptions>) => {
+  jest.useFakeTimers();
+  try {
+    act(() => {
+      hook.result.current.actions.patchOptions(patch);
+    });
+    act(() => {
+      jest.advanceTimersByTime(300);
+    });
+  } finally {
+    jest.useRealTimers();
+  }
+};
+
+const addOneJobAndFinish = async (hook: Hook) => {
+  await act(async () => {
+    await hook.result.current.actions.addFiles([makeFile("a.png")]);
+  });
+  await act(async () => {
+    compressCalls[0]?.deferred.resolve(makeResult());
+    await Promise.resolve();
+  });
+  await waitFor(() => {
+    expect(firstJob(hook.result.current.state.jobs).status).toBe("done");
+  });
+};
 
 describe("useOptimizer", () => {
   it("commits results for every job added in a batch", async () => {
@@ -229,9 +263,17 @@ describe("useOptimizer", () => {
     });
     expect(compressCalls).toHaveLength(1);
 
-    await act(() => {
-      result.current.actions.applyOptions();
-    });
+    jest.useFakeTimers();
+    try {
+      act(() => {
+        result.current.actions.patchOptions({ outputFormat: "jpeg" });
+      });
+      act(() => {
+        jest.advanceTimersByTime(300);
+      });
+    } finally {
+      jest.useRealTimers();
+    }
     // The aborted run holds its slot, so the new run waits for it to settle.
     expect(compressCalls).toHaveLength(1);
     expect(compressCalls[0]?.signal?.aborted).toBe(true);
@@ -339,6 +381,10 @@ describe("useOptimizer", () => {
 
   it("debounces a quality-only patch before re-running the queue", async () => {
     const { result } = renderHook(() => useOptimizer());
+    // Quality does not change PNG output, so the job needs a lossy format.
+    act(() => {
+      result.current.actions.patchOptions({ outputFormat: "jpeg" });
+    });
 
     await act(async () => {
       await result.current.actions.addFiles([makeFile("a.jpg")]);
@@ -557,5 +603,242 @@ describe("useOptimizer", () => {
       call.finish();
       await Promise.resolve();
     });
+  });
+
+  it("starts no encode for a quality change on a PNG result", async () => {
+    const hook = renderHook(() => useOptimizer());
+    await addOneJobAndFinish(hook);
+    // The mock result carries a placeholder key; a real encode stamps the key
+    // of its options, which this test needs to match.
+    const jobAfter = firstJob(hook.result.current.state.jobs);
+    expect(jobAfter.result?.settingsKey).toBe(
+      encodingKey(jobAfter, hook.result.current.state.options)
+    );
+
+    const callsBefore = compressCalls.length;
+    changeOptions(hook, { quality: 40 });
+
+    expect(compressCalls).toHaveLength(callsBefore);
+    expect(firstJob(hook.result.current.state.jobs).status).toBe("done");
+  });
+
+  it("starts an encode for a quality change on a JPEG result", async () => {
+    const hook = renderHook(() => useOptimizer());
+    await addOneJobAndFinish(hook);
+
+    changeOptions(hook, { outputFormat: "jpeg" });
+    await act(async () => {
+      compressCalls[1]?.deferred.resolve(makeResult());
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(firstJob(hook.result.current.state.jobs).status).toBe("done");
+    });
+
+    const callsBefore = compressCalls.length;
+    changeOptions(hook, { quality: 40 });
+
+    expect(compressCalls).toHaveLength(callsBefore + 1);
+  });
+
+  it("reruns a job in error on any settings change", async () => {
+    const hook = renderHook(() => useOptimizer());
+    await act(async () => {
+      await hook.result.current.actions.addFiles([makeFile("a.png")]);
+    });
+    await act(async () => {
+      compressCalls[0]?.deferred.reject(new Error("boom"));
+      // The API failure falls back to the browser encoder, which also fails.
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(compressCalls).toHaveLength(2);
+    });
+    await act(async () => {
+      compressCalls[1]?.deferred.reject(new Error("boom"));
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(firstJob(hook.result.current.state.jobs).status).toBe("error");
+    });
+    expect(firstJob(hook.result.current.state.jobs).result).toBeUndefined();
+
+    const callsBefore = compressCalls.length;
+    changeOptions(hook, { quality: 40 });
+
+    expect(compressCalls).toHaveLength(callsBefore + 1);
+  });
+
+  it("keeps the previous result while its replacement encodes", async () => {
+    const hook = renderHook(() => useOptimizer());
+    await addOneJobAndFinish(hook);
+    const previous = firstJob(hook.result.current.state.jobs).result;
+
+    changeOptions(hook, { outputFormat: "jpeg" });
+
+    const processing = firstJob(hook.result.current.state.jobs);
+    expect(processing.status).toBe("processing");
+    expect(processing.result).toBe(previous);
+    expect(hook.result.current.state.completedJobs).toHaveLength(1);
+  });
+
+  it("revokes the old result URL only after the replacement lands, and only once", async () => {
+    const hook = renderHook(() => useOptimizer());
+    const revokeSpy = spyOn(URL, "revokeObjectURL");
+    await act(async () => {
+      await hook.result.current.actions.addFiles([makeFile("a.png")]);
+    });
+    await act(async () => {
+      compressCalls[0]?.deferred.resolve(makeResult({ url: "blob:old" }));
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(firstJob(hook.result.current.state.jobs).status).toBe("done");
+    });
+
+    changeOptions(hook, { outputFormat: "jpeg" });
+    expect(revokeSpy.mock.calls.map((call) => call[0])).not.toContain(
+      "blob:old"
+    );
+
+    await act(async () => {
+      compressCalls[1]?.deferred.resolve(makeResult({ url: "blob:new" }));
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(firstJob(hook.result.current.state.jobs).result?.url).toBe(
+        "blob:new"
+      );
+    });
+    hook.unmount();
+
+    const revoked = revokeSpy.mock.calls.map((call) => call[0]);
+    expect(revoked.filter((url) => url === "blob:old")).toHaveLength(1);
+    expect(revoked.filter((url) => url === "blob:new")).toHaveLength(1);
+
+    revokeSpy.mockRestore();
+  });
+
+  it("restores done on the kept result when a change is undone mid-run", async () => {
+    const hook = renderHook(() => useOptimizer());
+    const revokeSpy = spyOn(URL, "revokeObjectURL");
+    await act(async () => {
+      await hook.result.current.actions.addFiles([makeFile("a.png")]);
+    });
+    await act(async () => {
+      compressCalls[0]?.deferred.resolve(makeResult({ url: "blob:kept" }));
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(firstJob(hook.result.current.state.jobs).status).toBe("done");
+    });
+
+    changeOptions(hook, { outputFormat: "jpeg" });
+    expect(firstJob(hook.result.current.state.jobs).status).toBe("processing");
+
+    changeOptions(hook, { outputFormat: "same" });
+    const restored = firstJob(hook.result.current.state.jobs);
+    expect(restored.status).toBe("done");
+    expect(restored.result?.url).toBe("blob:kept");
+    expect(hook.result.current.state.isProcessing).toBe(false);
+
+    // The cancelled run still settles later; its output is discarded.
+    await act(async () => {
+      compressCalls[1]?.deferred.resolve(makeResult({ url: "blob:late" }));
+      await Promise.resolve();
+    });
+    const settled = firstJob(hook.result.current.state.jobs);
+    expect(settled.status).toBe("done");
+    expect(settled.result?.url).toBe("blob:kept");
+    const revoked = revokeSpy.mock.calls.map((call) => call[0]);
+    expect(revoked).toContain("blob:late");
+    expect(revoked).not.toContain("blob:kept");
+
+    revokeSpy.mockRestore();
+  });
+
+  it("clears the old result and revokes its URL when the rerun fails", async () => {
+    const hook = renderHook(() => useOptimizer());
+    const revokeSpy = spyOn(URL, "revokeObjectURL");
+    await act(async () => {
+      await hook.result.current.actions.addFiles([makeFile("a.png")]);
+    });
+    await act(async () => {
+      compressCalls[0]?.deferred.resolve(makeResult({ url: "blob:stale" }));
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(firstJob(hook.result.current.state.jobs).status).toBe("done");
+    });
+
+    changeOptions(hook, { outputFormat: "jpeg" });
+    await act(async () => {
+      compressCalls[1]?.deferred.reject(new Error("boom"));
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(firstJob(hook.result.current.state.jobs).status).toBe("error");
+    });
+
+    expect(firstJob(hook.result.current.state.jobs).result).toBeUndefined();
+    expect(hook.result.current.state.completedJobs).toHaveLength(0);
+    expect(revokeSpy.mock.calls.map((call) => call[0])).toContain("blob:stale");
+
+    revokeSpy.mockRestore();
+  });
+
+  it("applies a format change after the debounce with no further call", async () => {
+    const hook = renderHook(() => useOptimizer());
+    await addOneJobAndFinish(hook);
+    const callsBefore = compressCalls.length;
+
+    jest.useFakeTimers();
+    try {
+      act(() => {
+        hook.result.current.actions.patchOptions({ outputFormat: "webp" });
+      });
+      expect(compressCalls).toHaveLength(callsBefore);
+
+      act(() => {
+        jest.advanceTimersByTime(300);
+      });
+      expect(compressCalls).toHaveLength(callsBefore + 1);
+    } finally {
+      jest.useRealTimers();
+    }
+    expect(compressCalls.at(-1)?.options.outputFormat).toBe("webp");
+  });
+
+  it("applies resize settings after the debounce", async () => {
+    const hook = renderHook(() => useOptimizer());
+    await addOneJobAndFinish(hook);
+    const callsBefore = compressCalls.length;
+
+    changeOptions(hook, { resizeEnabled: true, resizeWidth: 50 });
+
+    expect(compressCalls).toHaveLength(callsBefore + 1);
+    expect(compressCalls.at(-1)?.options.resizeWidth).toBe(50);
+  });
+
+  it("collapses a burst of patches into one pass", async () => {
+    const hook = renderHook(() => useOptimizer());
+    await addOneJobAndFinish(hook);
+    const callsBefore = compressCalls.length;
+
+    jest.useFakeTimers();
+    try {
+      act(() => {
+        hook.result.current.actions.patchOptions({ outputFormat: "webp" });
+        hook.result.current.actions.patchOptions({ quality: 60 });
+      });
+      act(() => {
+        jest.advanceTimersByTime(300);
+      });
+    } finally {
+      jest.useRealTimers();
+    }
+
+    expect(compressCalls).toHaveLength(callsBefore + 1);
+    expect(compressCalls.at(-1)?.options.quality).toBe(60);
   });
 });

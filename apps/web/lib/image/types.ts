@@ -23,7 +23,8 @@ export interface CompressionHeaders {
   height: number;
 }
 
-export interface ImageResult {
+// What an encoder produces. encodeJob stamps the settings key on top.
+export interface EncodedImage {
   blob: Blob;
   url: string;
   size: number;
@@ -31,6 +32,11 @@ export interface ImageResult {
   outputFormat: ImageFormat;
   width: number;
   height: number;
+}
+
+export interface ImageResult extends EncodedImage {
+  // encodingKey of the options that produced this result.
+  settingsKey: string;
 }
 
 export interface ImageJob {
