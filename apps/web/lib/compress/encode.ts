@@ -1,0 +1,90 @@
+import { compressWithApi } from "@/lib/compress/api";
+import { compressWithBrowser } from "@/lib/compress/browser";
+import {
+  resolveOutputFormat,
+  shouldUseBrowserEncoder,
+} from "@/lib/image/format";
+import type {
+  CompressionOptions,
+  ImageJob,
+  ImageResult,
+} from "@/lib/image/types";
+
+export interface Encoders {
+  api: typeof compressWithApi;
+  browser: typeof compressWithBrowser;
+}
+
+const DEFAULT_ENCODERS: Encoders = {
+  api: compressWithApi,
+  browser: compressWithBrowser,
+};
+
+// A PNG that did not shrink is returned byte for byte. Only PNG qualifies:
+// JPEG originals can carry GPS EXIF that every encode path strips.
+const keepOriginalIfLarger = (
+  job: ImageJob,
+  options: CompressionOptions,
+  result: ImageResult
+): ImageResult => {
+  const keepsOriginal =
+    job.inputFormat === "png" &&
+    resolveOutputFormat(job.inputFormat, options.outputFormat) === "png" &&
+    result.outputFormat === "png" &&
+    result.width === job.width &&
+    result.height === job.height &&
+    result.size >= job.originalSize;
+
+  if (!keepsOriginal) {
+    return result;
+  }
+
+  URL.revokeObjectURL(result.url);
+  return {
+    ...result,
+    blob: job.file,
+    size: job.originalSize,
+    url: URL.createObjectURL(job.file),
+  };
+};
+
+const encodeOnRoute = async (
+  job: ImageJob,
+  options: CompressionOptions,
+  signal: AbortSignal,
+  encoders: Encoders
+): Promise<ImageResult> => {
+  if (
+    shouldUseBrowserEncoder(
+      job.inputFormat,
+      options.outputFormat,
+      job.file.size
+    )
+  ) {
+    return await encoders.browser(job, options);
+  }
+
+  try {
+    return await encoders.api(job, options, signal);
+  } catch (error) {
+    // A superseded or removed job must not start a second encode.
+    if (signal.aborted) {
+      throw error;
+    }
+    // 422, 429, 504, network failure, and timeout all land here. The browser
+    // can encode anything the API can, so the user still gets a result.
+    return await encoders.browser(job, options);
+  }
+};
+
+export const encodeJob = async (
+  job: ImageJob,
+  options: CompressionOptions,
+  signal: AbortSignal,
+  encoders: Encoders = DEFAULT_ENCODERS
+): Promise<ImageResult> =>
+  keepOriginalIfLarger(
+    job,
+    options,
+    await encodeOnRoute(job, options, signal, encoders)
+  );
