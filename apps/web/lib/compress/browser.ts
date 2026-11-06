@@ -4,7 +4,7 @@ import type {
   CompressionOptions,
   ImageFormat,
   ImageJob,
-  ImageResult,
+  EncodedImage,
 } from "@/lib/image/types";
 
 // Queue rows show the image in a 32px box. Encoding a 64px thumbnail once at
@@ -201,7 +201,7 @@ export const assertTargetWithinLimits = (width: number, height: number) => {
 export const compressWithBrowser = async (
   job: ImageJob,
   options: CompressionOptions
-): Promise<ImageResult> => {
+): Promise<EncodedImage> => {
   const start = performance.now();
   const bitmap = await createImageBitmap(job.file);
 

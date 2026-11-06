@@ -21,6 +21,7 @@ import {
   readPreview,
   targetDimensions,
 } from "@/lib/compress/browser";
+import { encodingKey } from "@/lib/image/encoding-key";
 import type { IngestHandlers } from "@/lib/image/ingest-stream";
 import type {
   CompressionOptions,
@@ -156,6 +157,7 @@ const makeResult = (overrides: Partial<ImageResult> = {}): ImageResult => {
     elapsedMs: 5,
     height: 100,
     outputFormat: "jpeg",
+    settingsKey: "test",
     size: 500,
     url: `blob:result-${resultUrlCounter}`,
     width: 100,
@@ -188,6 +190,34 @@ beforeEach(() => {
 afterAll(() => {
   mock.restore();
 });
+
+type Hook = ReturnType<
+  typeof renderHook<ReturnType<typeof useOptimizer>, unknown>
+>;
+
+// Applies a settings change the way the UI does and waits for it to land.
+const changeOptions = async (
+  hook: Hook,
+  patch: Partial<CompressionOptions>
+) => {
+  await act(() => {
+    hook.result.current.actions.patchOptions(patch);
+    hook.result.current.actions.applyOptions();
+  });
+};
+
+const addOneJobAndFinish = async (hook: Hook) => {
+  await act(async () => {
+    await hook.result.current.actions.addFiles([makeFile("a.png")]);
+  });
+  await act(async () => {
+    compressCalls[0]?.deferred.resolve(makeResult());
+    await Promise.resolve();
+  });
+  await waitFor(() => {
+    expect(firstJob(hook.result.current.state.jobs).status).toBe("done");
+  });
+};
 
 describe("useOptimizer", () => {
   it("commits results for every job added in a batch", async () => {
@@ -339,6 +369,10 @@ describe("useOptimizer", () => {
 
   it("debounces a quality-only patch before re-running the queue", async () => {
     const { result } = renderHook(() => useOptimizer());
+    // Quality does not change PNG output, so the job needs a lossy format.
+    act(() => {
+      result.current.actions.patchOptions({ outputFormat: "jpeg" });
+    });
 
     await act(async () => {
       await result.current.actions.addFiles([makeFile("a.jpg")]);
@@ -557,5 +591,69 @@ describe("useOptimizer", () => {
       call.finish();
       await Promise.resolve();
     });
+  });
+
+  it("starts no encode for a quality change on a PNG result", async () => {
+    const hook = renderHook(() => useOptimizer());
+    await addOneJobAndFinish(hook);
+    // The mock result carries a placeholder key; a real encode stamps the key
+    // of its options, which this test needs to match.
+    const jobAfter = firstJob(hook.result.current.state.jobs);
+    expect(jobAfter.result?.settingsKey).toBe(
+      encodingKey(jobAfter, hook.result.current.state.options)
+    );
+
+    const callsBefore = compressCalls.length;
+    await changeOptions(hook, { quality: 40 });
+
+    expect(compressCalls).toHaveLength(callsBefore);
+    expect(firstJob(hook.result.current.state.jobs).status).toBe("done");
+  });
+
+  it("starts an encode for a quality change on a JPEG result", async () => {
+    const hook = renderHook(() => useOptimizer());
+    await addOneJobAndFinish(hook);
+
+    await changeOptions(hook, { outputFormat: "jpeg" });
+    await act(async () => {
+      compressCalls[1]?.deferred.resolve(makeResult());
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(firstJob(hook.result.current.state.jobs).status).toBe("done");
+    });
+
+    const callsBefore = compressCalls.length;
+    await changeOptions(hook, { quality: 40 });
+
+    expect(compressCalls).toHaveLength(callsBefore + 1);
+  });
+
+  it("reruns a job in error on any settings change", async () => {
+    const hook = renderHook(() => useOptimizer());
+    await act(async () => {
+      await hook.result.current.actions.addFiles([makeFile("a.png")]);
+    });
+    await act(async () => {
+      compressCalls[0]?.deferred.reject(new Error("boom"));
+      // The API failure falls back to the browser encoder, which also fails.
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(compressCalls).toHaveLength(2);
+    });
+    await act(async () => {
+      compressCalls[1]?.deferred.reject(new Error("boom"));
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(firstJob(hook.result.current.state.jobs).status).toBe("error");
+    });
+    expect(firstJob(hook.result.current.state.jobs).result).toBeUndefined();
+
+    const callsBefore = compressCalls.length;
+    await changeOptions(hook, { quality: 40 });
+
+    expect(compressCalls).toHaveLength(callsBefore + 1);
   });
 });

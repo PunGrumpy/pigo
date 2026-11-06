@@ -5,7 +5,7 @@ import type {
   CompressionHeaders,
   CompressionOptions,
   ImageJob,
-  ImageResult,
+  EncodedImage,
 } from "@/lib/image/types";
 
 // Local dev uses Next.js rewrites (/api → Go API). On Vercel, set NEXT_PUBLIC_API_URL.
@@ -26,7 +26,7 @@ const readApiError = async (response: Response) => {
 const resultFromBlob = (
   blob: Blob,
   headers: CompressionHeaders
-): ImageResult => {
+): EncodedImage => {
   const { outputFormat } = headers;
   const outputBlob = blob.type
     ? blob
@@ -51,7 +51,7 @@ export const compressWithApi = async (
   job: ImageJob,
   options: CompressionOptions,
   signal?: AbortSignal
-): Promise<ImageResult> => {
+): Promise<EncodedImage> => {
   const form = new FormData();
   form.append("file", job.file, job.name);
   form.append("outputFormat", "png");

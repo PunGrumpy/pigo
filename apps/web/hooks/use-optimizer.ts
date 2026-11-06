@@ -11,6 +11,7 @@ import {
   DEFAULT_COMPRESSION_OPTIONS,
   sanitizeCompressionOptions,
 } from "@/lib/image/constants";
+import { encodingKey } from "@/lib/image/encoding-key";
 import { ingestFiles } from "@/lib/image/ingest";
 import { isJobPending } from "@/lib/image/job";
 import { revokeJobUrls } from "@/lib/image/revoke";
@@ -206,6 +207,30 @@ export const useOptimizer = () => {
     return schedulerRef.current;
   }, [runJob]);
 
+  // A job whose kept result already has this key needs no encode. Cancelling
+  // also drops an in-flight run for other settings, so returning to the kept
+  // result's settings lands back on it.
+  const requestEncode = useCallback(
+    (id: string, resolved: CompressionOptions) => {
+      const job = jobsRef.current.find((entry) => entry.id === id);
+      if (!job) {
+        return;
+      }
+
+      const scheduler = getScheduler();
+      if (job.result?.settingsKey !== encodingKey(job, resolved)) {
+        scheduler.request(id, resolved);
+        return;
+      }
+
+      scheduler.cancel(id);
+      if (isJobPending(job)) {
+        updateJob(id, (current) => ({ ...current, status: "done" }));
+      }
+    },
+    [getScheduler, updateJob]
+  );
+
   const addFiles = useCallback(
     async (fileList: File[] | FileList) => {
       setNotice(null);
@@ -281,9 +306,9 @@ export const useOptimizer = () => {
     clearQualityTimer();
     setOptionsDirty(false);
     for (const job of jobsRef.current) {
-      getScheduler().request(job.id, resolved);
+      requestEncode(job.id, resolved);
     }
-  }, [clearQualityTimer, getScheduler]);
+  }, [clearQualityTimer, requestEncode]);
 
   const scheduleQualityApply = useCallback(() => {
     clearQualityTimer();

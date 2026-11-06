@@ -1,9 +1,10 @@
 import { describe, expect, it, spyOn } from "bun:test";
 
+import { encodingKey } from "../../image/encoding-key";
 import type {
   CompressionOptions,
+  EncodedImage,
   ImageJob,
-  ImageResult,
 } from "../../image/types";
 import { encodeJob } from "../encode";
 import type { Encoders } from "../encode";
@@ -36,7 +37,7 @@ const makeJob = (overrides: Partial<ImageJob> = {}): ImageJob => ({
   ...overrides,
 });
 
-const makeResult = (overrides: Partial<ImageResult> = {}): ImageResult => ({
+const makeResult = (overrides: Partial<EncodedImage> = {}): EncodedImage => ({
   blob: new Blob(["encoded"], { type: "image/png" }),
   elapsedMs: 5,
   height: 100,
@@ -65,7 +66,10 @@ describe("encodeJob", () => {
       makeEncoders(rejectApi, () => Promise.resolve(browserResult))
     );
 
-    expect(result).toBe(browserResult);
+    expect(result).toEqual({
+      ...browserResult,
+      settingsKey: encodingKey(makeJob(), options),
+    });
   });
 
   it("does not fall back when the job was aborted", async () => {
@@ -111,6 +115,7 @@ describe("encodeJob", () => {
     expect(result.blob).toBe(job.file);
     expect(result.size).toBe(ORIGINAL_SIZE);
     expect(result.url).toBe("blob:kept");
+    expect(result.settingsKey).toBe(encodingKey(job, options));
     expect(revoked).toHaveBeenCalledWith("blob:encoded");
 
     created.mockRestore();
@@ -129,7 +134,10 @@ describe("encodeJob", () => {
       )
     );
 
-    expect(result).toBe(encoded);
+    expect(result).toEqual({
+      ...encoded,
+      settingsKey: encodingKey(makeJob(), options),
+    });
   });
 
   it("returns the encoded JPEG even when it is larger", async () => {
@@ -147,6 +155,29 @@ describe("encodeJob", () => {
       )
     );
 
-    expect(result).toBe(encoded);
+    expect(result).toEqual({
+      ...encoded,
+      settingsKey: encodingKey(makeJob({ inputFormat: "jpeg" }), options),
+    });
+  });
+
+  it("stamps the key of the options on a result from the browser route", async () => {
+    const jpegOptions = { ...options, quality: 60 };
+    const result = await encodeJob(
+      makeJob({ inputFormat: "jpeg" }),
+      jpegOptions,
+      new AbortController().signal,
+      makeEncoders(
+        () => Promise.reject(new Error("unused")),
+        () => Promise.resolve(makeResult({ outputFormat: "jpeg" }))
+      )
+    );
+
+    expect(result.settingsKey).toBe(
+      encodingKey(makeJob({ inputFormat: "jpeg" }), jpegOptions)
+    );
+    expect(result.settingsKey).not.toBe(
+      encodingKey(makeJob({ inputFormat: "jpeg" }), options)
+    );
   });
 });
