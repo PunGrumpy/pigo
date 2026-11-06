@@ -190,7 +190,7 @@ export const OptimizerQueuePanel = () => {
         </Button>
         <Button
           className="w-full flex items-center justify-center gap-2"
-          disabled={jobs.length === 0}
+          disabled={jobs.length === 0 && !ingest}
           type="button"
           variant="ghost"
           onClick={clearAll}
