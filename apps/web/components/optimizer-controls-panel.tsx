@@ -76,6 +76,7 @@ const DimensionInput = ({
 export const OptimizerControlsPanel = () => {
   const {
     completedJobs,
+    isProcessing,
     options,
     selectedJob,
     totalCompressed,
@@ -265,7 +266,7 @@ export const OptimizerControlsPanel = () => {
 
       <div className="flex shrink-0 flex-col gap-2 border-t border-gray-alpha-400 p-4 bg-background-200">
         <Button
-          disabled={completedCount === 0 || zipGenerating}
+          disabled={completedCount === 0 || zipGenerating || isProcessing}
           type="button"
           onClick={downloadAll}
           className="w-full flex items-center justify-center gap-2"
