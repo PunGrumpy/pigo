@@ -79,7 +79,9 @@ const makeFakeJob = (file: File): ImageJob => {
     file,
     height: 100,
     id,
-    inputFormat: "jpeg",
+    // PNG still routes to the API, which is the path that carries the abort
+    // signal these tests assert on.
+    inputFormat: "png",
     name: file.name,
     originalSize: file.size,
     originalUrl: `blob:original-${id}`,

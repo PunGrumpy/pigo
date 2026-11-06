@@ -1,5 +1,5 @@
 import { env } from "@/env";
-import { apiOutputFormat, mimeFromFormat } from "@/lib/image/format";
+import { mimeFromFormat } from "@/lib/image/format";
 import { parseCompressionHeaders } from "@/lib/image/headers";
 import type {
   CompressionHeaders,
@@ -54,10 +54,7 @@ export const compressWithApi = async (
 ): Promise<ImageResult> => {
   const form = new FormData();
   form.append("file", job.file, job.name);
-  form.append(
-    "outputFormat",
-    apiOutputFormat(job.inputFormat, options.outputFormat)
-  );
+  form.append("outputFormat", "png");
   form.append("quality", String(options.quality));
   form.append("maintainAspect", String(options.maintainAspect));
 

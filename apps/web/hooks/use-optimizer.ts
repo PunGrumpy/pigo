@@ -184,7 +184,8 @@ export const useOptimizer = () => {
       try {
         const result = shouldUseBrowserEncoder(
           job.inputFormat,
-          resolvedOptions.outputFormat
+          resolvedOptions.outputFormat,
+          job.file.size
         )
           ? await compressWithBrowser(job, resolvedOptions)
           : await compressWithApi(job, resolvedOptions, controller.signal);
