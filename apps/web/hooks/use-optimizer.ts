@@ -2,15 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { compressWithApi } from "@/lib/compress/api";
-import { compressWithBrowser } from "@/lib/compress/browser";
 import { downloadAll, downloadJob } from "@/lib/compress/download";
+import { encodeJob } from "@/lib/compress/encode";
 import { MAX_CONCURRENT_JOBS, runWithConcurrency } from "@/lib/compress/pool";
 import {
   DEFAULT_COMPRESSION_OPTIONS,
   sanitizeCompressionOptions,
 } from "@/lib/image/constants";
-import { shouldUseBrowserEncoder } from "@/lib/image/format";
 import { ingestFiles } from "@/lib/image/ingest";
 import { isJobPending } from "@/lib/image/job";
 import { revokeJobUrls } from "@/lib/image/revoke";
@@ -182,12 +180,7 @@ export const useOptimizer = () => {
       abortControllersRef.current.set(job.id, controller);
 
       try {
-        const result = shouldUseBrowserEncoder(
-          job.inputFormat,
-          resolvedOptions.outputFormat
-        )
-          ? await compressWithBrowser(job, resolvedOptions)
-          : await compressWithApi(job, resolvedOptions, controller.signal);
+        const result = await encodeJob(job, resolvedOptions, controller.signal);
 
         if (isJobRunStale(job.id, generation)) {
           URL.revokeObjectURL(result.url);

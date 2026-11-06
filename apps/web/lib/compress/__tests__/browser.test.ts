@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
 import type { CompressionOptions } from "../../image/types";
-import { targetDimensions } from "../browser";
+import { assertTargetWithinLimits, targetDimensions } from "../browser";
 
 const baseOptions: CompressionOptions = {
   maintainAspect: true,
@@ -61,5 +61,27 @@ describe("targetDimensions", () => {
       height: 540,
       width: 960,
     });
+  });
+});
+
+describe("assertTargetWithinLimits", () => {
+  it("accepts the largest allowed dimensions", () => {
+    expect(() => assertTargetWithinLimits(16_384, 6103)).not.toThrow();
+    expect(() => assertTargetWithinLimits(10_000, 10_000)).not.toThrow();
+  });
+
+  it("rejects a product above the 100MP limit", () => {
+    expect(() => assertTargetWithinLimits(10_001, 10_000)).toThrow(
+      "resized image exceeds the 100MP pixel limit"
+    );
+  });
+
+  it("rejects a side above the per-side limit", () => {
+    expect(() => assertTargetWithinLimits(16_385, 1)).toThrow(
+      "resized image exceeds the 16384 pixel per-side limit"
+    );
+    expect(() => assertTargetWithinLimits(1, 16_385)).toThrow(
+      "resized image exceeds the 16384 pixel per-side limit"
+    );
   });
 });

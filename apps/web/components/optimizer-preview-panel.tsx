@@ -8,8 +8,6 @@ import {
   useOptimizerActions,
   useOptimizerState,
 } from "@/components/providers/optimizer-provider";
-import { MAX_FILE_SIZE } from "@/lib/image/constants";
-import { formatBytes } from "@/lib/image/format";
 import { cn } from "@/lib/utils";
 
 export const OptimizerPreviewPanel = () => {
@@ -48,9 +46,7 @@ export const OptimizerPreviewPanel = () => {
           <p className="text-copy-14 text-gray-900 font-medium">
             Drop or select images to start compressing
           </p>
-          <p className="text-[12px] text-gray-800">
-            JPEG, PNG, WebP, or HEIC up to {formatBytes(MAX_FILE_SIZE)}
-          </p>
+          <p className="text-[12px] text-gray-800">JPEG, PNG, WebP, or HEIC</p>
         </div>
       )}
     </section>

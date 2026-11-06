@@ -1,3 +1,4 @@
+import { MAX_FILE_SIZE } from "./constants";
 import type { ImageFormat, InputFormat, OutputChoice } from "./types";
 
 export const formatBytes = (bytes: number) => {
@@ -68,28 +69,22 @@ export const resolveOutputFormat = (
   return inputFormat === "heic" ? "jpeg" : inputFormat;
 };
 
+// The API only serves PNG from the web app. Canvas PNG is 33% to 38% larger
+// than Go's, so PNG stays on the API. JPEG input goes to the browser even for
+// PNG output because the API ignores EXIF orientation and createImageBitmap
+// applies it.
 export const shouldUseBrowserEncoder = (
   inputFormat: InputFormat,
-  outputChoice: OutputChoice
-) =>
-  inputFormat === "heic" ||
-  resolveOutputFormat(inputFormat, outputChoice) === "webp";
-
-export type ApiOutputFormat = "same" | "jpeg" | "png";
-
-export const apiOutputFormat = (
-  inputFormat: InputFormat,
-  outputChoice: OutputChoice
-): ApiOutputFormat => {
-  if (shouldUseBrowserEncoder(inputFormat, outputChoice)) {
-    throw new Error("HEIC input and WebP output are encoded in the browser.");
+  outputChoice: OutputChoice,
+  fileSize: number
+) => {
+  const output = resolveOutputFormat(inputFormat, outputChoice);
+  if (output !== "png") {
+    return true;
   }
-
-  if (outputChoice === "jpeg" || outputChoice === "png") {
-    return outputChoice;
-  }
-
-  return "same";
+  return (
+    inputFormat === "heic" || inputFormat === "jpeg" || fileSize > MAX_FILE_SIZE
+  );
 };
 
 export const buildDownloadName = (

@@ -16,7 +16,11 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 // the shared module registry entry for the whole test run, not just this
 // file, and other suites (e.g. browser.test.ts) import the same file and need
 // those real exports to keep working.
-import { readPreview, targetDimensions } from "@/lib/compress/browser";
+import {
+  assertTargetWithinLimits,
+  readPreview,
+  targetDimensions,
+} from "@/lib/compress/browser";
 import type {
   CompressionOptions,
   ImageJob,
@@ -75,7 +79,9 @@ const makeFakeJob = (file: File): ImageJob => {
     file,
     height: 100,
     id,
-    inputFormat: "jpeg",
+    // PNG still routes to the API, which is the path that carries the abort
+    // signal these tests assert on.
+    inputFormat: "png",
     name: file.name,
     originalSize: file.size,
     originalUrl: `blob:original-${id}`,
@@ -112,6 +118,7 @@ mock.module("@/lib/compress/api", () => ({
 }));
 
 mock.module("@/lib/compress/browser", () => ({
+  assertTargetWithinLimits,
   compressWithBrowser: compressWithBrowserMock,
   readPreview,
   targetDimensions,

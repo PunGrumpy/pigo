@@ -11,6 +11,7 @@ export default defineConfig({
         files: [
           "lib/compress/api.ts",
           "lib/compress/browser.ts",
+          "lib/compress/encode.ts",
           "lib/image/ingest.ts",
         ],
         rules: ["react-doctor/no-create-object-url-without-revoke"],

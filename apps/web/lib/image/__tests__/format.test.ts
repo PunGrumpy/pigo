@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
+import { MAX_FILE_SIZE } from "../constants";
 import {
-  apiOutputFormat,
   buildDownloadName,
   formatBytes,
   formatSavings,
@@ -76,45 +76,44 @@ describe("resolveOutputFormat", () => {
 });
 
 describe("shouldUseBrowserEncoder", () => {
+  const small = 1024;
+
   it("never sends heic to the API", () => {
-    expect(shouldUseBrowserEncoder("heic", "jpeg")).toBe(true);
-    expect(shouldUseBrowserEncoder("heic", "png")).toBe(true);
-    expect(shouldUseBrowserEncoder("heic", "same")).toBe(true);
+    expect(shouldUseBrowserEncoder("heic", "jpeg", small)).toBe(true);
+    expect(shouldUseBrowserEncoder("heic", "png", small)).toBe(true);
+    expect(shouldUseBrowserEncoder("heic", "same", small)).toBe(true);
   });
 
-  it("uses browser encoder for webp same-format output", () => {
-    expect(shouldUseBrowserEncoder("webp", "same")).toBe(true);
+  it("encodes webp output in the browser", () => {
+    expect(shouldUseBrowserEncoder("webp", "same", small)).toBe(true);
+    expect(shouldUseBrowserEncoder("jpeg", "webp", small)).toBe(true);
+    expect(shouldUseBrowserEncoder("png", "webp", small)).toBe(true);
   });
 
-  it("uses browser encoder for explicit webp output", () => {
-    expect(shouldUseBrowserEncoder("jpeg", "webp")).toBe(true);
+  it("encodes jpeg output in the browser", () => {
+    expect(shouldUseBrowserEncoder("jpeg", "jpeg", small)).toBe(true);
+    expect(shouldUseBrowserEncoder("jpeg", "same", small)).toBe(true);
+    expect(shouldUseBrowserEncoder("png", "jpeg", small)).toBe(true);
   });
 
-  it("uses API encoder for jpeg same-format output", () => {
-    expect(shouldUseBrowserEncoder("jpeg", "jpeg")).toBe(false);
-    expect(shouldUseBrowserEncoder("jpeg", "same")).toBe(false);
-  });
-});
-
-describe("apiOutputFormat", () => {
-  it("returns API-compatible formats", () => {
-    expect(apiOutputFormat("jpeg", "same")).toBe("same");
-    expect(apiOutputFormat("png", "png")).toBe("png");
-    expect(apiOutputFormat("jpeg", "jpeg")).toBe("jpeg");
+  it("sends png to png through the API when the file fits", () => {
+    expect(shouldUseBrowserEncoder("png", "png", small)).toBe(false);
+    expect(shouldUseBrowserEncoder("png", "same", small)).toBe(false);
+    expect(shouldUseBrowserEncoder("png", "png", MAX_FILE_SIZE)).toBe(false);
   });
 
-  it("rejects webp output for the API", () => {
-    expect(() => apiOutputFormat("jpeg", "webp")).toThrow(
-      /encoded in the browser/u
-    );
-    expect(() => apiOutputFormat("webp", "same")).toThrow(
-      /encoded in the browser/u
-    );
+  it("encodes png in the browser when the file exceeds the API limit", () => {
+    expect(shouldUseBrowserEncoder("png", "png", MAX_FILE_SIZE + 1)).toBe(true);
   });
 
-  it("rejects heic input for the API", () => {
-    expect(() => apiOutputFormat("heic", "jpeg")).toThrow(
-      /encoded in the browser/u
+  it("keeps jpeg orientation by encoding jpeg to png in the browser", () => {
+    expect(shouldUseBrowserEncoder("jpeg", "png", small)).toBe(true);
+  });
+
+  it("encodes webp to png in the browser only when the file is large", () => {
+    expect(shouldUseBrowserEncoder("webp", "png", small)).toBe(false);
+    expect(shouldUseBrowserEncoder("webp", "png", MAX_FILE_SIZE + 1)).toBe(
+      true
     );
   });
 });

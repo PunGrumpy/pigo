@@ -1,5 +1,5 @@
-import { MAX_FILES, MAX_FILE_SIZE, MAX_PIXELS } from "./constants";
-import { formatBytes, inputFormatOf } from "./format";
+import { MAX_FILES, MAX_PIXELS } from "./constants";
+import { inputFormatOf } from "./format";
 
 export const validateFile = (file: File, existingCount: number) => {
   if (existingCount >= MAX_FILES) {
@@ -7,9 +7,6 @@ export const validateFile = (file: File, existingCount: number) => {
   }
   if (!inputFormatOf(file)) {
     return `${file.name} is not a JPEG, PNG, WebP, or HEIC image.`;
-  }
-  if (file.size > MAX_FILE_SIZE) {
-    return `${file.name} is larger than ${formatBytes(MAX_FILE_SIZE)}.`;
   }
 
   return null;

@@ -32,10 +32,10 @@ describe("validateFile", () => {
     );
   });
 
-  it("rejects files larger than max size", () => {
+  it("accepts files above the API body limit", () => {
     expect(
       validateFile(file("big.jpg", "image/jpeg", MAX_FILE_SIZE + 1), 0)
-    ).toMatch(/larger than/u);
+    ).toBeNull();
   });
 });
 
