@@ -656,4 +656,122 @@ describe("useOptimizer", () => {
 
     expect(compressCalls).toHaveLength(callsBefore + 1);
   });
+
+  it("keeps the previous result while its replacement encodes", async () => {
+    const hook = renderHook(() => useOptimizer());
+    await addOneJobAndFinish(hook);
+    const previous = firstJob(hook.result.current.state.jobs).result;
+
+    await changeOptions(hook, { outputFormat: "jpeg" });
+
+    const processing = firstJob(hook.result.current.state.jobs);
+    expect(processing.status).toBe("processing");
+    expect(processing.result).toBe(previous);
+    expect(hook.result.current.state.completedJobs).toHaveLength(1);
+  });
+
+  it("revokes the old result URL only after the replacement lands, and only once", async () => {
+    const hook = renderHook(() => useOptimizer());
+    const revokeSpy = spyOn(URL, "revokeObjectURL");
+    await act(async () => {
+      await hook.result.current.actions.addFiles([makeFile("a.png")]);
+    });
+    await act(async () => {
+      compressCalls[0]?.deferred.resolve(makeResult({ url: "blob:old" }));
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(firstJob(hook.result.current.state.jobs).status).toBe("done");
+    });
+
+    await changeOptions(hook, { outputFormat: "jpeg" });
+    expect(revokeSpy.mock.calls.map((call) => call[0])).not.toContain(
+      "blob:old"
+    );
+
+    await act(async () => {
+      compressCalls[1]?.deferred.resolve(makeResult({ url: "blob:new" }));
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(firstJob(hook.result.current.state.jobs).result?.url).toBe(
+        "blob:new"
+      );
+    });
+    hook.unmount();
+
+    const revoked = revokeSpy.mock.calls.map((call) => call[0]);
+    expect(revoked.filter((url) => url === "blob:old")).toHaveLength(1);
+    expect(revoked.filter((url) => url === "blob:new")).toHaveLength(1);
+
+    revokeSpy.mockRestore();
+  });
+
+  it("restores done on the kept result when a change is undone mid-run", async () => {
+    const hook = renderHook(() => useOptimizer());
+    const revokeSpy = spyOn(URL, "revokeObjectURL");
+    await act(async () => {
+      await hook.result.current.actions.addFiles([makeFile("a.png")]);
+    });
+    await act(async () => {
+      compressCalls[0]?.deferred.resolve(makeResult({ url: "blob:kept" }));
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(firstJob(hook.result.current.state.jobs).status).toBe("done");
+    });
+
+    await changeOptions(hook, { outputFormat: "jpeg" });
+    expect(firstJob(hook.result.current.state.jobs).status).toBe("processing");
+
+    await changeOptions(hook, { outputFormat: "same" });
+    const restored = firstJob(hook.result.current.state.jobs);
+    expect(restored.status).toBe("done");
+    expect(restored.result?.url).toBe("blob:kept");
+    expect(hook.result.current.state.isProcessing).toBe(false);
+
+    // The cancelled run still settles later; its output is discarded.
+    await act(async () => {
+      compressCalls[1]?.deferred.resolve(makeResult({ url: "blob:late" }));
+      await Promise.resolve();
+    });
+    const settled = firstJob(hook.result.current.state.jobs);
+    expect(settled.status).toBe("done");
+    expect(settled.result?.url).toBe("blob:kept");
+    const revoked = revokeSpy.mock.calls.map((call) => call[0]);
+    expect(revoked).toContain("blob:late");
+    expect(revoked).not.toContain("blob:kept");
+
+    revokeSpy.mockRestore();
+  });
+
+  it("clears the old result and revokes its URL when the rerun fails", async () => {
+    const hook = renderHook(() => useOptimizer());
+    const revokeSpy = spyOn(URL, "revokeObjectURL");
+    await act(async () => {
+      await hook.result.current.actions.addFiles([makeFile("a.png")]);
+    });
+    await act(async () => {
+      compressCalls[0]?.deferred.resolve(makeResult({ url: "blob:stale" }));
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(firstJob(hook.result.current.state.jobs).status).toBe("done");
+    });
+
+    await changeOptions(hook, { outputFormat: "jpeg" });
+    await act(async () => {
+      compressCalls[1]?.deferred.reject(new Error("boom"));
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(firstJob(hook.result.current.state.jobs).status).toBe("error");
+    });
+
+    expect(firstJob(hook.result.current.state.jobs).result).toBeUndefined();
+    expect(hook.result.current.state.completedJobs).toHaveLength(0);
+    expect(revokeSpy.mock.calls.map((call) => call[0])).toContain("blob:stale");
+
+    revokeSpy.mockRestore();
+  });
 });

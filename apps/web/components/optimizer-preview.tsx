@@ -230,7 +230,7 @@ const ComparisonViewport = ({
         </>
       ) : null}
 
-      {isJobPending(job) ? (
+      {isJobPending(job) && !job.result ? (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gray-alpha-100 z-20">
           <Spinner
             aria-label="Processing"

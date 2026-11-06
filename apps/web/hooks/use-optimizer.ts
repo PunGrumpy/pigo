@@ -154,14 +154,11 @@ export const useOptimizer = () => {
 
       const resolvedOptions = sanitizeCompressionOptions(nextOptions);
 
-      if (job.result?.url) {
-        URL.revokeObjectURL(job.result.url);
-      }
-
+      // The previous result stays up while the replacement encodes, so the
+      // preview does not blank and the divider keeps its place.
       updateJob(id, (current) => ({
         ...current,
         error: undefined,
-        result: undefined,
         status: "processing",
       }));
 
@@ -173,24 +170,37 @@ export const useOptimizer = () => {
           return;
         }
 
+        const previousUrl = jobsRef.current.find((entry) => entry.id === id)
+          ?.result?.url;
         updateJob(id, (current) => ({
           ...current,
           result,
           slider: current.slider || 50,
           status: "done",
         }));
+        if (previousUrl) {
+          URL.revokeObjectURL(previousUrl);
+        }
       } catch (error) {
         if (signal.aborted) {
           return;
         }
 
         const message = describeCompressionError(error);
+        const staleUrl = jobsRef.current.find((entry) => entry.id === id)
+          ?.result?.url;
 
+        // A failed run must not leave the old image shown or zipped as if it
+        // matched the new settings.
         updateJob(id, (current) => ({
           ...current,
           error: message,
+          result: undefined,
           status: "error",
         }));
+        if (staleUrl) {
+          URL.revokeObjectURL(staleUrl);
+        }
       }
     },
     [updateJob]
