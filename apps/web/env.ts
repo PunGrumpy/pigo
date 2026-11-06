@@ -1,19 +1,18 @@
-import { createEnv } from "@t3-oss/env-nextjs";
-import { z } from "zod";
-
-// Next.js inlines this into the client bundle at build time. A default in
+// Next.js inlines this into the client bundle at build time. A fallback in
 // production would ship a build pointing at the developer's own machine, so
-// production builds must supply it and fail loudly when they do not.
-const apiUrl =
-  process.env.NODE_ENV === "production"
-    ? z.url()
-    : z.url().default("http://localhost:3001");
+// `next build` fails here when the variable is missing or invalid. `tsc` and
+// `next typegen` never evaluate this module.
+if (
+  typeof window === "undefined" &&
+  process.env.NODE_ENV === "production" &&
+  !URL.canParse(process.env.NEXT_PUBLIC_API_URL ?? "")
+) {
+  throw new Error(
+    "NEXT_PUBLIC_API_URL must be set to a valid URL for production builds"
+  );
+}
 
-export const env = createEnv({
-  client: {
-    NEXT_PUBLIC_API_URL: apiUrl,
-  },
-  runtimeEnv: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
-  },
-});
+export const env = {
+  NEXT_PUBLIC_API_URL:
+    process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001",
+};
