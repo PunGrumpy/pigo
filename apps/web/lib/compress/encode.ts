@@ -1,9 +1,6 @@
 import { compressWithApi } from "@/lib/compress/api";
 import { compressWithBrowser } from "@/lib/compress/browser";
-import {
-  resolveOutputFormat,
-  shouldUseBrowserEncoder,
-} from "@/lib/image/format";
+import { shouldUseBrowserEncoder } from "@/lib/image/format";
 import type {
   CompressionOptions,
   ImageJob,
@@ -24,12 +21,10 @@ const DEFAULT_ENCODERS: Encoders = {
 // JPEG originals can carry GPS EXIF that every encode path strips.
 const keepOriginalIfLarger = (
   job: ImageJob,
-  options: CompressionOptions,
   result: ImageResult
 ): ImageResult => {
   const keepsOriginal =
     job.inputFormat === "png" &&
-    resolveOutputFormat(job.inputFormat, options.outputFormat) === "png" &&
     result.outputFormat === "png" &&
     result.width === job.width &&
     result.height === job.height &&
@@ -85,6 +80,5 @@ export const encodeJob = async (
 ): Promise<ImageResult> =>
   keepOriginalIfLarger(
     job,
-    options,
     await encodeOnRoute(job, options, signal, encoders)
   );
