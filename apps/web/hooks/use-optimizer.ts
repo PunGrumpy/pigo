@@ -18,6 +18,11 @@ import type { CompressionOptions, ImageJob } from "@/lib/image/types";
 
 export type FilterTab = "all" | "optimized" | "errors";
 
+export interface IngestProgress {
+  done: number;
+  total: number;
+}
+
 const describeCompressionError = (error: unknown): string => {
   if (error instanceof DOMException && error.name === "TimeoutError") {
     return "The API did not respond in time.";
@@ -40,6 +45,8 @@ export const useOptimizer = () => {
   const pendingIngestRef = useRef(0);
   // clearAll bumps this so an ingest that started earlier stops adding rows.
   const epochRef = useRef(0);
+  // Spans overlapping drops: it resets only once every claimed file settled.
+  const ingestProgressRef = useRef<IngestProgress>({ done: 0, total: 0 });
   const schedulerRef = useRef<Scheduler<CompressionOptions> | null>(null);
   const qualityApplyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
@@ -51,6 +58,7 @@ export const useOptimizer = () => {
   });
   const [optionsDirty, setOptionsDirty] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [ingest, setIngest] = useState<IngestProgress | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterTab, setFilterTab] = useState<FilterTab>("all");
   const [zipGenerating, setZipGenerating] = useState(false);
@@ -202,9 +210,14 @@ export const useOptimizer = () => {
     async (fileList: File[] | FileList) => {
       setNotice(null);
       const files = [...fileList];
+      if (files.length === 0) {
+        return;
+      }
       const epoch = epochRef.current;
       const startCount = jobsRef.current.length + pendingIngestRef.current;
       pendingIngestRef.current += files.length;
+      ingestProgressRef.current.total += files.length;
+      setIngest({ ...ingestProgressRef.current });
 
       const isCancelled = () => epochRef.current !== epoch;
       const messages: string[] = [];
@@ -221,9 +234,17 @@ export const useOptimizer = () => {
           setNotice(messages.slice(0, 3).join(" "));
         },
         onSettled: () => {
-          // clearAll already zeroed the claim for a cancelled drop.
-          if (!isCancelled()) {
-            pendingIngestRef.current -= 1;
+          // clearAll already reset the claim for a cancelled drop.
+          if (isCancelled()) {
+            return;
+          }
+          pendingIngestRef.current -= 1;
+          ingestProgressRef.current.done += 1;
+          if (pendingIngestRef.current === 0) {
+            ingestProgressRef.current = { done: 0, total: 0 };
+            setIngest(null);
+          } else {
+            setIngest({ ...ingestProgressRef.current });
           }
         },
       });
@@ -318,6 +339,8 @@ export const useOptimizer = () => {
 
     epochRef.current += 1;
     pendingIngestRef.current = 0;
+    ingestProgressRef.current = { done: 0, total: 0 };
+    setIngest(null);
     commitJobs([]);
     setSelectedId(null);
     setOptionsDirty(false);
@@ -371,6 +394,7 @@ export const useOptimizer = () => {
       completedJobs,
       filterTab,
       filteredJobs,
+      ingest,
       isProcessing,
       jobs,
       notice,
@@ -390,6 +414,7 @@ export const useOptimizer = () => {
       completedJobs,
       filterTab,
       filteredJobs,
+      ingest,
       isProcessing,
       jobs,
       notice,

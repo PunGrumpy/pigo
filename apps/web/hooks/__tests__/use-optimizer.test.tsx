@@ -484,6 +484,55 @@ describe("useOptimizer", () => {
     expect(ingestCalls[1]?.handlers.isCancelled()).toBe(false);
   });
 
+  it("reports ingest progress from {0, n} until every file settles", async () => {
+    const { result } = renderHook(() => useOptimizer());
+    autoResolveIngest = false;
+    expect(result.current.state.ingest).toBeNull();
+
+    let pending!: Promise<void>;
+    act(() => {
+      pending = result.current.actions.addFiles([
+        makeFile("a.jpg"),
+        makeFile("b.jpg"),
+      ]);
+    });
+    const [call] = ingestCalls;
+    if (!call) {
+      throw new Error("expected an ingest call");
+    }
+    expect(result.current.state.ingest).toEqual({ done: 0, total: 2 });
+
+    act(() => {
+      deliverFile(call, makeFile("a.jpg"));
+    });
+    expect(result.current.state.ingest).toEqual({ done: 1, total: 2 });
+
+    act(() => {
+      deliverFile(call, makeFile("b.jpg"));
+    });
+    expect(result.current.state.ingest).toBeNull();
+
+    await act(async () => {
+      call.finish();
+      await pending;
+    });
+  });
+
+  it("clears ingest progress when the queue is cleared mid-read", () => {
+    const { result } = renderHook(() => useOptimizer());
+    autoResolveIngest = false;
+
+    act(() => {
+      result.current.actions.addFiles([makeFile("a.jpg")]);
+    });
+    expect(result.current.state.ingest).toEqual({ done: 0, total: 1 });
+
+    act(() => {
+      result.current.actions.clearAll();
+    });
+    expect(result.current.state.ingest).toBeNull();
+  });
+
   it("shows at most three ingest messages in the notice", async () => {
     const { result } = renderHook(() => useOptimizer());
     autoResolveIngest = false;
