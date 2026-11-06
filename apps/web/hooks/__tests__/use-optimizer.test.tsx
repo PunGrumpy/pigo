@@ -215,7 +215,8 @@ describe("useOptimizer", () => {
     await act(() => {
       result.current.actions.applyOptions();
     });
-    expect(compressCalls).toHaveLength(2);
+    // The aborted run holds its slot, so the new run waits for it to settle.
+    expect(compressCalls).toHaveLength(1);
     expect(compressCalls[0]?.signal?.aborted).toBe(true);
 
     const staleResult = makeResult({ url: "blob:stale-result" });
@@ -224,6 +225,9 @@ describe("useOptimizer", () => {
       await Promise.resolve();
     });
 
+    await waitFor(() => {
+      expect(compressCalls).toHaveLength(2);
+    });
     expect(firstJob(result.current.state.jobs).status).not.toBe("done");
     expect(revokeSpy.mock.calls.map((call) => call[0])).toContain(
       "blob:stale-result"
