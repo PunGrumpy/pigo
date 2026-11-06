@@ -33,11 +33,13 @@ export const useOptimizer = () => {
   const optionsRef = useRef<CompressionOptions>({
     ...DEFAULT_COMPRESSION_OPTIONS,
   });
-  // addFiles reads jobsRef.current.length before an await; a second drop
-  // during a slow ingest would otherwise see the pre-ingest count and bypass
-  // the MAX_FILES ceiling. This tracks files already claimed but not yet
-  // committed to jobsRef.
+  // Rows arrive one at a time while a drop is still reading. A second drop must
+  // count the files of the first that have not landed in jobsRef yet, or it
+  // would bypass the MAX_FILES ceiling. This tracks files claimed but not yet
+  // settled.
   const pendingIngestRef = useRef(0);
+  // clearAll bumps this so an ingest that started earlier stops adding rows.
+  const epochRef = useRef(0);
   const schedulerRef = useRef<Scheduler<CompressionOptions> | null>(null);
   const qualityApplyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
@@ -199,30 +201,32 @@ export const useOptimizer = () => {
   const addFiles = useCallback(
     async (fileList: File[] | FileList) => {
       setNotice(null);
-      const claimed = fileList.length;
+      const files = [...fileList];
+      const epoch = epochRef.current;
       const startCount = jobsRef.current.length + pendingIngestRef.current;
-      pendingIngestRef.current += claimed;
+      pendingIngestRef.current += files.length;
 
-      let ingestResult: Awaited<ReturnType<typeof ingestFiles>>;
-      try {
-        ingestResult = await ingestFiles([...fileList], startCount);
-      } finally {
-        pendingIngestRef.current -= claimed;
-      }
+      const isCancelled = () => epochRef.current !== epoch;
+      const messages: string[] = [];
 
-      const { jobs: nextJobs, messages } = ingestResult;
-      if (messages.length > 0) {
-        setNotice(messages.slice(0, 3).join(" "));
-      }
-      if (nextJobs.length === 0) {
-        return;
-      }
-
-      commitJobs([...jobsRef.current, ...nextJobs]);
-      setSelectedId((current) => current ?? nextJobs[0]?.id ?? null);
-      for (const job of nextJobs) {
-        getScheduler().request(job.id, optionsRef.current);
-      }
+      await ingestFiles(files, startCount, {
+        isCancelled,
+        onJob: (job) => {
+          commitJobs([...jobsRef.current, job]);
+          setSelectedId((current) => current ?? job.id);
+          getScheduler().request(job.id, optionsRef.current);
+        },
+        onMessage: (message) => {
+          messages.push(message);
+          setNotice(messages.slice(0, 3).join(" "));
+        },
+        onSettled: () => {
+          // clearAll already zeroed the claim for a cancelled drop.
+          if (!isCancelled()) {
+            pendingIngestRef.current -= 1;
+          }
+        },
+      });
     },
     [commitJobs, getScheduler]
   );
@@ -312,6 +316,8 @@ export const useOptimizer = () => {
       revokeJobUrls(job);
     }
 
+    epochRef.current += 1;
+    pendingIngestRef.current = 0;
     commitJobs([]);
     setSelectedId(null);
     setOptionsDirty(false);

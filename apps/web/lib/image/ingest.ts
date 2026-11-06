@@ -1,48 +1,10 @@
 import { readPreview } from "@/lib/compress/browser";
-import { MAX_CONCURRENT_JOBS, runWithConcurrency } from "@/lib/compress/pool";
 import { parseJpegExif } from "@/lib/image/exif";
-import { inputFormatOf } from "@/lib/image/format";
 import { decodeHeic } from "@/lib/image/heic";
+import { streamIngest } from "@/lib/image/ingest-stream";
+import type { IngestHandlers } from "@/lib/image/ingest-stream";
 import type { ImageJob, InputFormat } from "@/lib/image/types";
-import { validateDimensions, validateFile } from "@/lib/image/validation";
-
-interface IngestResult {
-  jobs: ImageJob[];
-  messages: string[];
-}
-
-interface AcceptedFile {
-  file: File;
-  inputFormat: InputFormat;
-}
-
-const acceptFiles = (
-  files: File[],
-  startCount: number,
-  messages: string[]
-): AcceptedFile[] => {
-  const accepted: AcceptedFile[] = [];
-  let count = startCount;
-
-  for (const file of files) {
-    const validationError = validateFile(file, count);
-    if (validationError) {
-      messages.push(validationError);
-      continue;
-    }
-
-    const inputFormat = inputFormatOf(file);
-    if (!inputFormat) {
-      messages.push(`${file.name} is not a supported image.`);
-      continue;
-    }
-
-    accepted.push({ file, inputFormat });
-    count += 1;
-  }
-
-  return accepted;
-};
+import { validateDimensions } from "@/lib/image/validation";
 
 const jobFromFile = async (
   file: File,
@@ -86,31 +48,8 @@ const jobFromFile = async (
   }
 };
 
-export const ingestFiles = async (
+export const ingestFiles = (
   files: File[],
-  startCount: number
-): Promise<IngestResult> => {
-  const messages: string[] = [];
-  const accepted = acceptFiles(files, startCount, messages);
-  const outcomes: (ImageJob | string)[] = Array.from({
-    length: accepted.length,
-  });
-  await runWithConcurrency(
-    accepted.map((entry, index) => ({ entry, index })),
-    MAX_CONCURRENT_JOBS,
-    async ({ entry, index }) => {
-      outcomes[index] = await jobFromFile(entry.file, entry.inputFormat);
-    }
-  );
-
-  const jobs: ImageJob[] = [];
-  for (const outcome of outcomes) {
-    if (typeof outcome === "string") {
-      messages.push(outcome);
-      continue;
-    }
-    jobs.push(outcome);
-  }
-
-  return { jobs, messages };
-};
+  startCount: number,
+  handlers: IngestHandlers
+): Promise<void> => streamIngest(files, startCount, handlers, jobFromFile);

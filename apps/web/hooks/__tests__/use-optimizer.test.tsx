@@ -21,6 +21,7 @@ import {
   readPreview,
   targetDimensions,
 } from "@/lib/compress/browser";
+import type { IngestHandlers } from "@/lib/image/ingest-stream";
 import type {
   CompressionOptions,
   ImageJob,
@@ -95,23 +96,39 @@ const makeFakeJob = (file: File): ImageJob => {
 interface IngestCall {
   files: File[];
   startCount: number;
-  deferred: Deferred<{ jobs: ImageJob[]; messages: string[] }>;
+  handlers: IngestHandlers;
+  finish: () => void;
 }
 
-// Populated in call order; each entry auto-resolves immediately unless
-// autoResolveIngest is turned off, letting a test hold an ingest open to
-// observe what the next addFiles call sees.
+// Populated in call order. By default every file is delivered at once; turning
+// autoResolveIngest off lets a test hold an ingest open and deliver files one
+// at a time with deliverFile.
 let ingestCalls: IngestCall[] = [];
 let autoResolveIngest = true;
 
-const ingestFilesMock = mock((files: File[], startCount: number) => {
-  const deferred = createDeferred<{ jobs: ImageJob[]; messages: string[] }>();
-  ingestCalls.push({ deferred, files, startCount });
-  if (autoResolveIngest) {
-    deferred.resolve({ jobs: files.map(makeFakeJob), messages: [] });
+const deliverFile = (call: IngestCall, file: File) => {
+  call.handlers.onJob(makeFakeJob(file));
+  call.handlers.onSettled();
+};
+
+const ingestFilesMock = mock(
+  (files: File[], startCount: number, handlers: IngestHandlers) => {
+    let finish!: () => void;
+    // oxlint-disable-next-line promise/avoid-new
+    const promise = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const call: IngestCall = { files, finish, handlers, startCount };
+    ingestCalls.push(call);
+    if (autoResolveIngest) {
+      for (const file of files) {
+        deliverFile(call, file);
+      }
+      finish();
+    }
+    return promise;
   }
-  return deferred.promise;
-});
+);
 
 mock.module("@/lib/compress/api", () => ({
   compressWithApi: compressWithApiMock,
@@ -375,15 +392,121 @@ describe("useOptimizer", () => {
     expect(ingestCalls[1]?.startCount).toBe(2);
 
     await act(async () => {
-      ingestCalls[0]?.deferred.resolve({
-        jobs: (ingestCalls[0]?.files ?? []).map(makeFakeJob),
-        messages: [],
-      });
-      ingestCalls[1]?.deferred.resolve({
-        jobs: (ingestCalls[1]?.files ?? []).map(makeFakeJob),
-        messages: [],
-      });
+      for (const call of ingestCalls) {
+        for (const file of call.files) {
+          deliverFile(call, file);
+        }
+        call.finish();
+      }
       await Promise.all([firstAddFiles, secondAddFiles]);
+    });
+  });
+
+  it("adds a row and starts its encode before the rest of the drop finishes", async () => {
+    const { result } = renderHook(() => useOptimizer());
+    autoResolveIngest = false;
+
+    let pending!: Promise<void>;
+    act(() => {
+      pending = result.current.actions.addFiles([
+        makeFile("a.jpg"),
+        makeFile("b.jpg"),
+      ]);
+    });
+    const [call] = ingestCalls;
+    if (!call) {
+      throw new Error("expected an ingest call");
+    }
+    expect(result.current.state.jobs).toHaveLength(0);
+
+    act(() => {
+      deliverFile(call, makeFile("a.jpg"));
+    });
+
+    expect(result.current.state.jobs.map((job) => job.name)).toEqual(["a.jpg"]);
+    expect(result.current.state.selectedId).toBe(
+      firstJob(result.current.state.jobs).id
+    );
+    expect(compressCalls).toHaveLength(1);
+
+    // The second drop sees one landed job plus one file still reading.
+    act(() => {
+      result.current.actions.addFiles([makeFile("c.jpg")]);
+    });
+    expect(ingestCalls[1]?.startCount).toBe(2);
+
+    await act(async () => {
+      deliverFile(call, makeFile("b.jpg"));
+      call.finish();
+      ingestCalls[1]?.finish();
+      await pending;
+    });
+  });
+
+  it("adds no rows from an ingest that clearAll cancelled", async () => {
+    const { result } = renderHook(() => useOptimizer());
+    autoResolveIngest = false;
+
+    let pending!: Promise<void>;
+    act(() => {
+      pending = result.current.actions.addFiles([
+        makeFile("a.jpg"),
+        makeFile("b.jpg"),
+      ]);
+    });
+    const [call] = ingestCalls;
+    if (!call) {
+      throw new Error("expected an ingest call");
+    }
+    act(() => {
+      deliverFile(call, makeFile("a.jpg"));
+    });
+    expect(call.handlers.isCancelled()).toBe(false);
+
+    act(() => {
+      result.current.actions.clearAll();
+    });
+    expect(call.handlers.isCancelled()).toBe(true);
+    expect(result.current.state.jobs).toHaveLength(0);
+
+    // A drop after clearing starts from an empty claim, not the cancelled one.
+    act(() => {
+      result.current.actions.addFiles([makeFile("c.jpg")]);
+    });
+    expect(ingestCalls[1]?.startCount).toBe(0);
+
+    await act(async () => {
+      call.handlers.onSettled();
+      call.finish();
+      ingestCalls[1]?.finish();
+      await pending;
+    });
+    expect(ingestCalls[1]?.handlers.isCancelled()).toBe(false);
+  });
+
+  it("shows at most three ingest messages in the notice", async () => {
+    const { result } = renderHook(() => useOptimizer());
+    autoResolveIngest = false;
+
+    act(() => {
+      result.current.actions.addFiles([makeFile("a.jpg")]);
+    });
+    const [call] = ingestCalls;
+    if (!call) {
+      throw new Error("expected an ingest call");
+    }
+
+    act(() => {
+      for (const message of ["one.", "two.", "three.", "four."]) {
+        call.handlers.onMessage(message);
+      }
+    });
+    expect(result.current.state.notice).toBe("one. two. three.");
+
+    await act(async () => {
+      call.handlers.onSettled();
+      call.finish();
+      await Promise.resolve();
     });
   });
 });
