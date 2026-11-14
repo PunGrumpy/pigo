@@ -12,6 +12,12 @@ fi
 FORMAT_EXIT_CODE=0
 bun x ultracite fix || FORMAT_EXIT_CODE=$?
 
+if command -v gofmt >/dev/null 2>&1; then
+  echo "$STAGED_FILES" | grep '\.go$' | while IFS= read -r file; do
+    [ -f "$file" ] && gofmt -w "$file"
+  done
+fi
+
 # Re-stage files that were already staged
 echo "$STAGED_FILES" | while IFS= read -r file; do
   if [ -f "$file" ]; then
