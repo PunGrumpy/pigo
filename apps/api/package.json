@@ -5,7 +5,7 @@
     "build": "go build -o bin/pigo-api .",
     "dev": "if command -v air >/dev/null; then exec air .; else exec go run .; fi",
     "test": "go test ./...",
-    "check": "go vet ./...",
+    "check": "test -z \"$(gofmt -l . | tee /dev/stderr)\"",
     "fix": "go fmt ./...",
     "typecheck": "go vet ./..."
   },
