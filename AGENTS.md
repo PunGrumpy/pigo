@@ -2,6 +2,15 @@
 
 This project uses **Ultracite**, a zero-config preset that enforces strict code quality standards through automated formatting and linting.
 
+## Commands
+
+Run these from the repository root before you commit:
+
+- **Lint and format**: `bun run check`
+- **Typecheck**: `bun run typecheck`
+- **Test**: `bun run test`
+- **Build**: `NEXT_PUBLIC_API_URL=http://localhost:3001 bun run build`
+
 ## Quick Reference
 
 - **Format code**: `bun x ultracite fix`
