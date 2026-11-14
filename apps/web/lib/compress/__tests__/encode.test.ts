@@ -16,6 +16,7 @@ const options: CompressionOptions = {
   resizeEnabled: false,
   resizeHeight: 0,
   resizeWidth: 0,
+  targetSizeKb: 0,
 };
 
 const ORIGINAL_SIZE = 1000;

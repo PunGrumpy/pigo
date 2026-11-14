@@ -4,6 +4,7 @@ import type { CompressionOptions } from "../../image/types";
 import {
   assertTargetWithinLimits,
   encodeBitmap,
+  encodeToTarget,
   targetDimensions,
 } from "../browser";
 
@@ -14,6 +15,7 @@ const baseOptions: CompressionOptions = {
   resizeEnabled: false,
   resizeHeight: 0,
   resizeWidth: 0,
+  targetSizeKb: 0,
 };
 
 describe("targetDimensions", () => {
@@ -146,5 +148,54 @@ describe("encodeBitmap", () => {
     await expect(encodeBitmap(bitmap, "jpeg", 4, 4, 0.8)).rejects.toThrow(
       "This browser could not encode jpeg."
     );
+  });
+});
+
+describe("encodeToTarget", () => {
+  const originalOffscreenCanvas = globalThis.OffscreenCanvas;
+  const KB = 1024;
+  const bitmap = { close: noop, height: 4, width: 4 } as ImageBitmap;
+
+  // Size in bytes grows with quality: 1 KB per quality point.
+  const stubCanvas = () => {
+    const drawImage = mock(noop);
+    const qualities: number[] = [];
+    globalThis.OffscreenCanvas = function FakeOffscreenCanvas() {
+      return {
+        convertToBlob: ({ quality, type }: ImageEncodeOptions) => {
+          const percent = Math.round((quality ?? 0) * 100);
+          qualities.push(percent);
+          return Promise.resolve(
+            new Blob([new Uint8Array(percent * KB)], { type })
+          );
+        },
+        getContext: () => ({ drawImage, fillRect: noop }),
+      };
+    } as unknown as typeof OffscreenCanvas;
+    return { drawImage, qualities };
+  };
+
+  afterEach(() => {
+    globalThis.OffscreenCanvas = originalOffscreenCanvas;
+    mock.restore();
+  });
+
+  it("draws once and finds the highest quality that fits", async () => {
+    const { drawImage, qualities } = stubCanvas();
+    const match = await encodeToTarget(bitmap, "jpeg", 4, 4, 60 * KB);
+
+    expect(drawImage).toHaveBeenCalledTimes(1);
+    expect(qualities.length).toBeGreaterThan(1);
+    expect(match.blob.size).toBeLessThanOrEqual(60 * KB);
+    expect(match.blob.size).toBeGreaterThanOrEqual(54 * KB);
+    expect(match.overTarget).toBe(false);
+  });
+
+  it("flags a result that cannot reach the target", async () => {
+    stubCanvas();
+    const match = await encodeToTarget(bitmap, "webp", 4, 4, KB / 2);
+
+    expect(match.quality).toBe(1);
+    expect(match.overTarget).toBe(true);
   });
 });

@@ -22,6 +22,7 @@ export const DEFAULT_COMPRESSION_OPTIONS = {
   resizeEnabled: false,
   resizeHeight: 0,
   resizeWidth: 0,
+  targetSizeKb: 0,
 } as const;
 
 const OUTPUT_CHOICES = new Set<OutputChoice>(["same", "jpeg", "png", "webp"]);
@@ -32,6 +33,11 @@ export const normalizeQuality = (quality: number) => {
     return DEFAULT_COMPRESSION_OPTIONS.quality;
   }
   return Math.min(100, Math.max(1, rounded));
+};
+
+const normalizeTargetSize = (kb: number) => {
+  const rounded = Math.round(kb);
+  return Number.isFinite(rounded) && rounded > 0 ? rounded : 0;
 };
 
 const normalizeDimension = (value: number) => {
@@ -53,4 +59,5 @@ export const sanitizeCompressionOptions = (
   quality: normalizeQuality(options.quality),
   resizeHeight: normalizeDimension(options.resizeHeight),
   resizeWidth: normalizeDimension(options.resizeWidth),
+  targetSizeKb: normalizeTargetSize(options.targetSizeKb),
 });

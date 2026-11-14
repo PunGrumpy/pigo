@@ -10,6 +10,7 @@ const options: CompressionOptions = {
   resizeEnabled: false,
   resizeHeight: 0,
   resizeWidth: 0,
+  targetSizeKb: 0,
 };
 
 const makeJob = (
@@ -77,6 +78,38 @@ describe("encodingKey", () => {
     expect(encodingKey(job, resized)).not.toBe(encodingKey(job, options));
     // A resize to the original width lands on the original dimensions.
     expect(encodingKey(job, { ...resized, resizeWidth: 200 })).toBe(
+      encodingKey(job, options)
+    );
+  });
+
+  it("ignores quality when a target size is set on a lossy output", () => {
+    const job = makeJob("jpeg");
+    const targeted = { ...options, targetSizeKb: 200 };
+    expect(encodingKey(job, { ...targeted, quality: 40 })).toBe(
+      encodingKey(job, { ...targeted, quality: 90 })
+    );
+  });
+
+  it("changes with the target size and when the target turns on", () => {
+    const job = makeJob("jpeg");
+    expect(encodingKey(job, { ...options, targetSizeKb: 200 })).not.toBe(
+      encodingKey(job, { ...options, targetSizeKb: 300 })
+    );
+    expect(encodingKey(job, { ...options, targetSizeKb: 200 })).not.toBe(
+      encodingKey(job, options)
+    );
+  });
+
+  it("does not mix a target of 82 KB with quality 82", () => {
+    const job = makeJob("jpeg");
+    expect(encodingKey(job, { ...options, targetSizeKb: 82 })).not.toBe(
+      encodingKey(job, options)
+    );
+  });
+
+  it("ignores the target size when the output is PNG", () => {
+    const job = makeJob("png");
+    expect(encodingKey(job, { ...options, targetSizeKb: 200 })).toBe(
       encodingKey(job, options)
     );
   });

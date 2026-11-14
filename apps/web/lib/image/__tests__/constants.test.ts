@@ -50,6 +50,7 @@ describe("sanitizeCompressionOptions", () => {
         resizeEnabled: false,
         resizeHeight: 0,
         resizeWidth: 0,
+        targetSizeKb: 0,
       })
     ).toEqual({
       ...DEFAULT_COMPRESSION_OPTIONS,
@@ -67,6 +68,7 @@ describe("sanitizeCompressionOptions", () => {
         resizeEnabled: false,
         resizeHeight: 0,
         resizeWidth: 0,
+        targetSizeKb: 0,
       }).outputFormat
     ).toBe("webp");
 
@@ -78,6 +80,7 @@ describe("sanitizeCompressionOptions", () => {
         resizeEnabled: false,
         resizeHeight: 0,
         resizeWidth: 0,
+        targetSizeKb: 0,
       }).outputFormat
     ).toBe(DEFAULT_COMPRESSION_OPTIONS.outputFormat);
   });
@@ -91,6 +94,7 @@ describe("sanitizeCompressionOptions", () => {
         resizeEnabled: true,
         resizeHeight: 999_999,
         resizeWidth: 999_999,
+        targetSizeKb: 0,
       })
     ).toMatchObject({
       resizeHeight: MAX_DIMENSION,
@@ -107,10 +111,12 @@ describe("sanitizeCompressionOptions", () => {
         resizeEnabled: true,
         resizeHeight: Number.NaN,
         resizeWidth: -5,
+        targetSizeKb: 0,
       })
     ).toMatchObject({
       resizeHeight: 0,
       resizeWidth: 0,
+      targetSizeKb: 0,
     });
   });
 
@@ -123,10 +129,38 @@ describe("sanitizeCompressionOptions", () => {
         resizeEnabled: true,
         resizeHeight: 800.6,
         resizeWidth: 800.6,
+        targetSizeKb: 0,
       })
     ).toMatchObject({
       resizeHeight: 801,
       resizeWidth: 801,
     });
+  });
+});
+
+const withTarget = (targetSizeKb: number) =>
+  sanitizeCompressionOptions({
+    ...DEFAULT_COMPRESSION_OPTIONS,
+    targetSizeKb,
+  }).targetSizeKb;
+
+describe("sanitizeCompressionOptions target size", () => {
+  it("defaults to off", () => {
+    expect(DEFAULT_COMPRESSION_OPTIONS.targetSizeKb).toBe(0);
+  });
+
+  it("keeps a positive whole number", () => {
+    expect(withTarget(200)).toBe(200);
+  });
+
+  it("rounds fractional values", () => {
+    expect(withTarget(199.6)).toBe(200);
+  });
+
+  it("turns off for zero, negative, and non-finite values", () => {
+    expect(withTarget(0)).toBe(0);
+    expect(withTarget(-5)).toBe(0);
+    expect(withTarget(Number.NaN)).toBe(0);
+    expect(withTarget(Number.POSITIVE_INFINITY)).toBe(0);
   });
 });

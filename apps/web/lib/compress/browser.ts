@@ -1,3 +1,5 @@
+import { searchQualityForTarget } from "@/lib/compress/target-size";
+import type { TargetSizeMatch } from "@/lib/compress/target-size";
 import { MAX_DIMENSION, MAX_PIXELS } from "@/lib/image/constants";
 import { mimeFromFormat, resolveOutputFormat } from "@/lib/image/format";
 import type {
@@ -11,6 +13,8 @@ import type {
 // ingest keeps the browser from holding a full-resolution decode per row.
 const THUMBNAIL_MAX_EDGE = 64;
 const THUMBNAIL_QUALITY = 0.7;
+
+const BYTES_PER_KB = 1024;
 
 const clampQuality = (quality: number) => Math.min(1, Math.max(0.01, quality));
 
@@ -74,37 +78,50 @@ const stepDown = (
   return source;
 };
 
-/**
- * Encodes a bitmap to JPEG, PNG, or WebP off the main thread where possible.
- *
- * `OffscreenCanvas.convertToBlob` hands the encode to a browser-managed thread;
- * `HTMLCanvasElement.toBlob` is the async fallback. Both beat `toDataURL`, which
- * blocks the main thread for the whole encode and pays a base64 round trip on
- * top of it.
- */
-export const encodeBitmap = async (
+type EncodeCanvas = HTMLCanvasElement | OffscreenCanvas;
+
+const drawToCanvas = (
   bitmap: ImageBitmap,
   format: ImageFormat,
   width: number,
-  height: number,
-  quality: number
-): Promise<Blob> => {
-  const normalized = clampQuality(quality);
-  const type = mimeFromFormat(format);
-
+  height: number
+): EncodeCanvas => {
   if (typeof OffscreenCanvas === "function") {
     const canvas = new OffscreenCanvas(width, height);
     draw2d(canvas, stepDown(bitmap, width, height), width, height, format);
-    return assertEncodedAs(
-      await canvas.convertToBlob({ quality: normalized, type }),
-      format
-    );
+    return canvas;
   }
 
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
   draw2d(canvas, bitmap, width, height, format);
+  return canvas;
+};
+
+/**
+ * Encodes a drawn canvas to JPEG, PNG, or WebP off the main thread where
+ * possible.
+ *
+ * `OffscreenCanvas.convertToBlob` hands the encode to a browser-managed thread;
+ * `HTMLCanvasElement.toBlob` is the async fallback. Both beat `toDataURL`, which
+ * blocks the main thread for the whole encode and pays a base64 round trip on
+ * top of it.
+ */
+const encodeCanvas = async (
+  canvas: EncodeCanvas,
+  format: ImageFormat,
+  quality: number
+): Promise<Blob> => {
+  const normalized = clampQuality(quality);
+  const type = mimeFromFormat(format);
+
+  if ("convertToBlob" in canvas) {
+    return assertEncodedAs(
+      await canvas.convertToBlob({ quality: normalized, type }),
+      format
+    );
+  }
 
   // oxlint-disable-next-line promise/avoid-new
   return await new Promise<Blob>((resolve, reject) => {
@@ -120,6 +137,31 @@ export const encodeBitmap = async (
       normalized
     );
   });
+};
+
+export const encodeBitmap = (
+  bitmap: ImageBitmap,
+  format: ImageFormat,
+  width: number,
+  height: number,
+  quality: number
+): Promise<Blob> =>
+  encodeCanvas(drawToCanvas(bitmap, format, width, height), format, quality);
+
+// Draws once and searches quality against the same canvas: each probe pays for
+// an encode, not for a redraw.
+export const encodeToTarget = (
+  bitmap: ImageBitmap,
+  format: ImageFormat,
+  width: number,
+  height: number,
+  targetBytes: number
+): Promise<TargetSizeMatch> => {
+  const canvas = drawToCanvas(bitmap, format, width, height);
+  return searchQualityForTarget(
+    (quality) => encodeCanvas(canvas, format, quality / 100),
+    targetBytes
+  );
 };
 
 export interface ImagePreview {
@@ -221,19 +263,33 @@ export const compressWithBrowser = async (
       job.inputFormat,
       options.outputFormat
     );
-    const blob = await encodeBitmap(
-      bitmap,
-      outputFormat,
-      target.width,
-      target.height,
-      options.quality / 100
-    );
+    const searched =
+      outputFormat !== "png" && options.targetSizeKb > 0
+        ? await encodeToTarget(
+            bitmap,
+            outputFormat,
+            target.width,
+            target.height,
+            options.targetSizeKb * BYTES_PER_KB
+          )
+        : null;
+    const blob =
+      searched?.blob ??
+      (await encodeBitmap(
+        bitmap,
+        outputFormat,
+        target.width,
+        target.height,
+        options.quality / 100
+      ));
 
     return {
       blob,
       elapsedMs: Math.round(performance.now() - start),
       height: target.height,
       outputFormat,
+      overTarget: searched?.overTarget,
+      quality: searched?.quality,
       size: blob.size,
       url: URL.createObjectURL(blob),
       width: target.width,
