@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "build": "go build -o bin/pigo-api .",
-    "dev": "air .",
+    "dev": "if command -v air >/dev/null; then exec air .; else exec go run .; fi",
     "test": "go test ./...",
     "check": "go vet ./...",
     "fix": "go fmt ./...",

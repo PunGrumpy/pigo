@@ -1,0 +1,8 @@
+root = "../.."
+
+[build]
+cmd = "go build -o ../../tmp/main ."
+entrypoint = ["./tmp/main"]
+include_dir = ["apps/api", "packages/core"]
+exclude_dir = ["apps/api/node_modules", "apps/api/bin", "tmp"]
+include_ext = ["go"]

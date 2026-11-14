@@ -40,7 +40,7 @@ Make sure you have the following installed:
 
 - [Go](https://go.dev/doc/install) (1.26 or later)
 - [Bun](https://bun.sh) (1.3.14 or later)
-- [Air](https://github.com/air-verse/air), optional, for API hot-reloading
+- [Air](https://github.com/air-verse/air), optional, for API hot-reloading. Without it, `bun dev` runs the API with `go run .` and you restart it after each change.
 
 ### Installation
 
@@ -68,6 +68,8 @@ bun dev
 - **Frontend**: `http://localhost:3000`
 - **API backend**: `http://localhost:3001`
 
+With Air installed, the API rebuilds when a `.go` file changes in `apps/api` or `packages/core`.
+
 ### Configuration
 
 The API reads its settings from the process environment. Set these variables before you start the API; `apps/api/.env.example` documents each one.
@@ -76,6 +78,19 @@ The API reads its settings from the process environment. Set these variables bef
 | :-- | :-- | :-- |
 | `PORT` | `3001` | Port the API listens on. |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:3000, http://127.0.0.1:3000, https://pigo-web.vercel.app` | Comma-separated origins the API allows for CORS. Entries of the form `https://*.example.com` match one subdomain level. |
+
+### Check your change
+
+CI builds the project and runs these checks. Run them before you open a pull request:
+
+```bash
+bun run check
+bun run typecheck
+bun run test
+NEXT_PUBLIC_API_URL=http://localhost:3001 bun run build
+```
+
+The build needs `NEXT_PUBLIC_API_URL`. Development falls back to `http://localhost:3001`, but a production build fails without it.
 
 ### Formatting and linting
 
