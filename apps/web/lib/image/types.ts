@@ -8,6 +8,8 @@ export type JobStatus = "queued" | "processing" | "done" | "error";
 export interface CompressionOptions {
   outputFormat: OutputChoice;
   quality: number;
+  // Target output size in KB for JPEG and WebP; 0 turns it off.
+  targetSizeKb: number;
   resizeEnabled: boolean;
   resizeWidth: number;
   resizeHeight: number;
@@ -32,6 +34,10 @@ export interface EncodedImage {
   outputFormat: ImageFormat;
   width: number;
   height: number;
+  // Set when the encoder searched quality for a target size.
+  quality?: number;
+  // True when even the lowest quality stayed above the target size.
+  overTarget?: boolean;
 }
 
 export interface ImageResult extends EncodedImage {

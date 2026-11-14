@@ -13,33 +13,43 @@ import {
 } from "@/components/providers/optimizer-provider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MAX_DIMENSION } from "@/lib/image/constants";
-import { formatBytes, formatSavings } from "@/lib/image/format";
+import {
+  formatBytes,
+  formatSavings,
+  resolveOutputFormat,
+} from "@/lib/image/format";
 import { cn } from "@/lib/utils";
 
-const DIMENSION_INPUT_CLASS = cn(
+const NUMBER_INPUT_CLASS = cn(
   "peer h-9 w-full min-w-0 cursor-pointer appearance-none truncate rounded-md border-none bg-background-100 text-label-14 text-gray-1000 shadow-[0_0_0_1px_var(--ds-gray-alpha-400)] outline-none transition-[box-shadow,color] duration-150",
   "hover:shadow-[0_0_0_1px_var(--ds-gray-alpha-500)]",
   "focus:outline-none focus-visible:shadow-[var(--ds-focus-ring)]",
   "disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-700 disabled:shadow-[0_0_0_1px_var(--ds-gray-alpha-400)]"
 );
 
-interface DimensionInputProps {
+interface NumberFieldProps {
   id: string;
   label: string;
   value: number;
   placeholder: string;
+  max?: number;
+  disabled?: boolean;
+  describedBy?: string;
   onCommit: (value: number) => void;
 }
 
 // Typing is held locally and applied on blur or Enter, so entering 1920 does
 // not resize to 1 and then 19 on the way.
-const DimensionInput = ({
+const NumberField = ({
   id,
   label,
   value,
   placeholder,
+  max,
+  disabled,
+  describedBy,
   onCommit,
-}: DimensionInputProps) => {
+}: NumberFieldProps) => {
   const [draft, setDraft] = useState<string | null>(null);
 
   const commit = () => {
@@ -54,9 +64,11 @@ const DimensionInput = ({
     <label className="flex flex-col gap-1" htmlFor={id}>
       <span className="text-[11px] text-gray-800">{label}</span>
       <Input
-        className={DIMENSION_INPUT_CLASS}
+        className={NUMBER_INPUT_CLASS}
+        aria-describedby={describedBy}
+        disabled={disabled}
         id={id}
-        max={MAX_DIMENSION}
+        max={max}
         min="1"
         placeholder={placeholder}
         type="number"
@@ -70,6 +82,78 @@ const DimensionInput = ({
         }}
       />
     </label>
+  );
+};
+
+const QualityFields = () => {
+  const { jobs, options } = useOptimizerState();
+  const { patchOptions } = useOptimizerActions();
+
+  // Only JPEG and WebP output can be sized; PNG is lossless.
+  const targetApplies =
+    jobs.length === 0
+      ? options.outputFormat !== "png"
+      : jobs.some(
+          (job) =>
+            resolveOutputFormat(job.inputFormat, options.outputFormat) !== "png"
+        );
+  const targetActive = targetApplies && options.targetSizeKb > 0;
+
+  return (
+    <>
+      <div className="flex flex-col gap-1.5">
+        <label
+          aria-label="Quality"
+          className="flex flex-col gap-1.5"
+          htmlFor="quality"
+        >
+          <div className="flex justify-between items-center text-label-12 text-gray-800">
+            <span>Quality</span>
+            <span className="font-mono font-medium text-gray-1000 bg-gray-200 px-1.5 py-0.5 rounded">
+              {options.quality}%
+            </span>
+          </div>
+          <input
+            aria-describedby={targetActive ? "quality-note" : undefined}
+            className={cn(
+              "compare-range w-full py-2",
+              targetActive && "opacity-50"
+            )}
+            disabled={targetActive}
+            id="quality"
+            max="100"
+            min="1"
+            type="range"
+            value={options.quality}
+            onChange={(event) =>
+              patchOptions({ quality: Number(event.target.value) })
+            }
+          />
+        </label>
+        {targetActive && (
+          <span className="text-[11px] text-gray-800" id="quality-note">
+            Set by the target size. This value applies when the target is off.
+          </span>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <NumberField
+          describedBy={targetApplies ? undefined : "target-size-note"}
+          disabled={!targetApplies}
+          id="target-size"
+          label="Target Size (KB)"
+          placeholder="Off"
+          value={options.targetSizeKb}
+          onCommit={(targetSizeKb) => patchOptions({ targetSizeKb })}
+        />
+        {!targetApplies && (
+          <span className="text-[11px] text-gray-800" id="target-size-note">
+            Target size needs JPEG or WebP output. PNG is lossless.
+          </span>
+        )}
+      </div>
+    </>
   );
 };
 
@@ -186,29 +270,7 @@ export const OptimizerControlsPanel = () => {
             </div>
           </fieldset>
 
-          <label
-            aria-label="Quality"
-            className="flex flex-col gap-1.5"
-            htmlFor="quality"
-          >
-            <div className="flex justify-between items-center text-label-12 text-gray-800">
-              <span>Quality</span>
-              <span className="font-mono font-medium text-gray-1000 bg-gray-200 px-1.5 py-0.5 rounded">
-                {options.quality}%
-              </span>
-            </div>
-            <input
-              className="compare-range w-full py-2"
-              id="quality"
-              max="100"
-              min="1"
-              type="range"
-              value={options.quality}
-              onChange={(event) =>
-                patchOptions({ quality: Number(event.target.value) })
-              }
-            />
-          </label>
+          <QualityFields />
 
           <div className="flex flex-col gap-3 rounded-[6px] border border-gray-alpha-300 bg-background-200/50 p-3">
             <Checkbox
@@ -223,15 +285,17 @@ export const OptimizerControlsPanel = () => {
             {options.resizeEnabled && (
               <div className="mt-2 flex flex-col gap-3">
                 <div className="grid grid-cols-2 gap-2">
-                  <DimensionInput
+                  <NumberField
                     id="resize-width"
+                    max={MAX_DIMENSION}
                     label="Width (px)"
                     placeholder={String(selectedJob?.width ?? "")}
                     value={options.resizeWidth}
                     onCommit={(resizeWidth) => patchOptions({ resizeWidth })}
                   />
-                  <DimensionInput
+                  <NumberField
                     id="resize-height"
+                    max={MAX_DIMENSION}
                     label="Height (px)"
                     placeholder={String(selectedJob?.height ?? "")}
                     value={options.resizeHeight}

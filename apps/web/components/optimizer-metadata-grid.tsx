@@ -118,6 +118,24 @@ export const OptimizerMetadataGrid = ({ job }: OptimizerMetadataGridProps) => (
       </span>
     </div>
 
+    {job.result?.overTarget && (
+      <div className="flex justify-between items-center px-3 py-2">
+        <span className="text-gray-900">Target Size</span>
+        <span className="font-mono font-medium text-amber-700">
+          Closest possible
+        </span>
+      </div>
+    )}
+
+    {job.result?.quality !== undefined && (
+      <div className="flex justify-between items-center px-3 py-2">
+        <span className="text-gray-900">Chosen Quality</span>
+        <span className="font-mono font-medium text-gray-1000">
+          {job.result.quality}%
+        </span>
+      </div>
+    )}
+
     {/* Savings */}
     <div className="flex justify-between items-center px-3 py-2">
       <span className="text-gray-900">Savings</span>
