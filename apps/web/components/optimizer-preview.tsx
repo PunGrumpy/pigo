@@ -172,7 +172,7 @@ const ComparisonViewport = ({
         <>
           <div
             className="pointer-events-none absolute inset-0 flex items-center justify-center"
-            style={{ clipPath: `inset(0 ${100 - sliderValue}% 0 0)` }}
+            style={{ clipPath: `inset(0 0 0 ${sliderValue}%)` }}
           >
             <Image
               alt={`Optimized ${job.name}`}
