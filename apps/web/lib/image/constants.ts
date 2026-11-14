@@ -7,6 +7,7 @@ export const MAX_FILE_SIZE = 4 * 1024 * 1024;
 export const MAX_PIXELS = 100_000_000;
 // Mirrors MaxDimension in packages/core/types.go — change both together.
 export const MAX_DIMENSION = 16_384;
+export const HEIC_JPEG_QUALITY = 0.95;
 export const ACCEPTED_MIME_TYPES = [
   "image/jpeg",
   "image/png",
