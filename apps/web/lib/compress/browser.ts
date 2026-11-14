@@ -14,6 +14,15 @@ const THUMBNAIL_QUALITY = 0.7;
 
 const clampQuality = (quality: number) => Math.min(1, Math.max(0.01, quality));
 
+// Canvas encoders answer a type they cannot encode with a PNG instead of an
+// error, so the blob's own type is the only sign that the format was honored.
+const assertEncodedAs = (blob: Blob | null, format: ImageFormat): Blob => {
+  if (!blob?.size || blob.type !== mimeFromFormat(format)) {
+    throw new Error(`This browser could not encode ${format}.`);
+  }
+  return blob;
+};
+
 const draw2d = (
   canvas: HTMLCanvasElement | OffscreenCanvas,
   source: ImageBitmap | OffscreenCanvas,
@@ -73,7 +82,7 @@ const stepDown = (
  * blocks the main thread for the whole encode and pays a base64 round trip on
  * top of it.
  */
-const encodeBitmap = async (
+export const encodeBitmap = async (
   bitmap: ImageBitmap,
   format: ImageFormat,
   width: number,
@@ -86,10 +95,10 @@ const encodeBitmap = async (
   if (typeof OffscreenCanvas === "function") {
     const canvas = new OffscreenCanvas(width, height);
     draw2d(canvas, stepDown(bitmap, width, height), width, height, format);
-    return await canvas.convertToBlob({
-      quality: normalized,
-      type,
-    });
+    return assertEncodedAs(
+      await canvas.convertToBlob({ quality: normalized, type }),
+      format
+    );
   }
 
   const canvas = document.createElement("canvas");
@@ -101,11 +110,11 @@ const encodeBitmap = async (
   return await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
       (blob) => {
-        if (blob?.size) {
-          resolve(blob);
-          return;
+        try {
+          resolve(assertEncodedAs(blob, format));
+        } catch (error) {
+          reject(error);
         }
-        reject(new Error(`This browser could not encode ${format}.`));
       },
       type,
       normalized
